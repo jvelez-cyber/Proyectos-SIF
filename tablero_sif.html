@@ -964,13 +964,16 @@ input[type="file"] { display: none; }
     padding: 12px 12px 28px;
     gap: 12px;
   }
-  .panel-mapa { min-height: 280px; }
   .header-inner { padding: 10px 14px; }
   .header-texto h1 { font-size: 1rem; }
   .escudo { height: 72px; }
   .kpi-valor { font-size: 1.6rem; }
-  .kpi-icono { width: 40px; height: 40px; border-radius: 10px; }
-  .kpi-icono svg { width: 20px; height: 20px; }
+  .kpi-icono { width: 42px; height: 42px; border-radius: 11px; }
+  .kpi-icono svg { width: 21px; height: 21px; }
+  /* Indicadores en tablet: alturas ligeramente reducidas */
+  .ind-wrap-lg { height: 200px; }
+  .ind-wrap-md { height: 165px; }
+  .ind-wrap-sm { height: 110px; }
 }
 
 /* ── Móvil (≤ 600px) ── */
@@ -1001,21 +1004,23 @@ input[type="file"] { display: none; }
     gap: 8px;
   }
 
-  /* KPIs — 2 por fila */
+  /* KPIs — 2 por fila, icono oculto para ahorrar espacio */
   .kpis {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
-  .kpi { padding: 12px 14px; }
-  .kpi-valor { font-size: 1.4rem; }
-  .kpi-label { font-size: 0.65rem; }
+  .kpi { padding: 11px 12px; gap: 0; }
+  .kpi-icono { display: none; }
+  .kpi-valor { font-size: 1.5rem; }
+  .kpi-label { font-size: 0.63rem; }
+  .kpi-sub { font-size: 0.63rem; }
   /* Inversión total ocupa todo el ancho */
   .kpis .kpi:last-child { grid-column: 1 / -1; }
 
-  /* Mapa — colapsable en móvil */
-  .panel-mapa { min-height: 0; }
-  #map { min-height: 220px; }
-  .mapa-leyenda { display: none; }
+  /* Indicadores en móvil */
+  .ind-wrap-lg { height: 180px; }
+  .ind-wrap-md { height: 150px; }
+  .ind-wrap-sm { height: 100px; }
 
   /* Filtros — en columna */
   .tabla-controles {
@@ -1046,7 +1051,7 @@ input[type="file"] { display: none; }
   .detalle-body { padding: 14px 14px; }
   .detalle-secciones { grid-template-columns: 1fr; }
 
-  /* Modales — pantalla completa en móvil */
+  /* Modales */
   .modal {
     width: 96%;
     padding: 20px 16px;
@@ -1056,6 +1061,9 @@ input[type="file"] { display: none; }
 
   /* Botones en header reducidos */
   .btn-sm { padding: 5px 9px; font-size: 0.7rem; }
+
+  /* Footer */
+  .pie-pagina { font-size: 0.67rem; padding: 10px 12px 16px; }
 }
 </style>
 </head>
