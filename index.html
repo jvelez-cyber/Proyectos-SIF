@@ -479,7 +479,8 @@ tbody td.col-nombre {
   color: var(--verde-oscuro);
 }
 
-tbody td.col-observacion {
+tbody td.col-observacion,
+tbody td.col-observaciones {
   max-width: 220px;
   min-width: 120px;
   white-space: normal;
@@ -489,7 +490,8 @@ tbody td.col-observacion {
 }
 
 thead th.col-nombre { min-width: 160px; }
-thead th.col-observacion { min-width: 120px; }
+thead th.col-observacion,
+thead th.col-observaciones { min-width: 120px; }
 
 .badge-estado {
   display: inline-block;
@@ -1039,7 +1041,7 @@ input[type="file"] { display: none; }
   thead th { padding: 8px 8px; font-size: 0.68rem; }
   tbody td { padding: 6px 8px; }
   tbody td.col-nombre { max-width: 180px; min-width: 120px; }
-  tbody td.col-observacion { max-width: 140px; min-width: 80px; }
+  tbody td.col-observacion, tbody td.col-observaciones { max-width: 140px; min-width: 80px; }
 
   /* Paginación */
   .paginacion { flex-wrap: wrap; gap: 4px; padding: 8px 10px; }
@@ -1380,7 +1382,8 @@ async function cargarDesdeFirebase() {
     proyectos = [];
     snap.forEach(d => proyectos.push({ _id: d.id, ...d.data() }));
     if (proyectos.length > 0) {
-      columnas = Object.keys(proyectos[0]).filter(k => k !== '_id');
+      columnas = [...new Set(proyectos.flatMap(p => Object.keys(p)))].filter(k => k !== '_id');
+
       inicializarTabla();
       actualizarKPIs();
       renderIndicadores();
@@ -1482,14 +1485,32 @@ async function procesarExcel(event) {
       const ws = wb.Sheets[wb.SheetNames[0]];
       const rowsRaw = XLSX.utils.sheet_to_json(ws, { defval: '' });
 
-      // Filtrar Row 2 del Excel SIF (tiene los nombres de columna como datos)
-      // y filas completamente vacías
+      // Extraer fila de encabezados reales (fila 2 del Excel SIF)
+      const headerRow = rowsRaw.find(row => {
+        const vals = Object.values(row).map(v => String(v).trim().toLowerCase());
+        return vals.includes('municipio') && (vals.includes('subregión') || vals.includes('subregion'));
+      });
+      // Mapeo __EMPTY_X → nombre real de columna
+      const keyRemap = {};
+      if (headerRow) {
+        Object.entries(headerRow).forEach(([k, v]) => {
+          const vStr = String(v).trim();
+          if (vStr) keyRemap[k] = vStr;
+        });
+      }
+
+      // Filtrar fila de etiquetas y filas vacías, luego renombrar claves
       const rows = rowsRaw.filter(row => {
         const vals = Object.values(row).map(v => String(v).trim().toLowerCase());
-        // Saltar fila de etiquetas (tiene 'municipio' y 'subregión' como celdas de datos)
         if (vals.includes('municipio') && (vals.includes('subregión') || vals.includes('subregion'))) return false;
-        // Saltar filas donde todas las celdas están vacías
         return vals.some(v => v !== '');
+      }).map(row => {
+        if (!Object.keys(keyRemap).length) return row;
+        const remapped = {};
+        Object.entries(row).forEach(([k, v]) => {
+          remapped[keyRemap[k] || k] = v;
+        });
+        return remapped;
       });
 
       if (rows.length === 0) { mostrarToast("Excel vacío o sin datos", true); return; }
@@ -1511,7 +1532,7 @@ async function procesarExcel(event) {
         });
       });
 
-      columnas = Object.keys(rows[0]);
+      columnas = [...new Set(rows.flatMap(r => Object.keys(r)))];
       document.getElementById('progresoCarga').style.display = 'block';
 
       // MODO REEMPLAZAR: eliminar todos los proyectos existentes primero
@@ -1594,26 +1615,63 @@ const LABELS_CAMPO = {
   nombre:'PROYECTO / ACTIVIDAD', municipio:'MUNICIPIO', subregion:'SUBREGIÓN',
   estado:'ESTADO', tipo:'INDICADOR', año:'VIGENCIA', valor:'VALOR TOTAL',
   fuente:'FUENTE FINANCIACIÓN', codigo:'CÓDIGO', observacion:'DESCRIPCIÓN / ALCANCE',
-  gerencia:'GERENCIA', contrato:'MODALIDAD CONTRATACIÓN', contratista:'CONTRATISTA',
-  avance:'% AVANCE', aporte_dep:'APORTE GOBERNACIÓN', aporte_mun:'APORTE MUNICIPIO'
+  observaciones:'OBSERVACIONES / ALERTAS', gerencia:'GERENCIA', contrato:'MODALIDAD CONTRATACIÓN',
+  contratista:'CONTRATISTA', avance:'% AVANCE', aporte_dep:'APORTE GOBERNACIÓN', aporte_mun:'APORTE MUNICIPIO'
 };
 
 // Devuelve columnas en orden semántico lógico para mostrar en la tabla
+function _colParaCampo(campo) {
+  // 1. Búsqueda vía detectarCampo
+  const found = columnas.find(c => detectarCampo(c) === campo);
+  if (found) return found;
+  // 2. Fallback: alias normalizado contra claves reales
+  const aliases = CAMPO_MAP[campo] || [];
+  for (const alias of aliases) {
+    const na = _norm(alias);
+    const match = columnas.find(c => _norm(c) === na);
+    if (match) return match;
+  }
+  // 3. Fallback substring por alias
+  for (const alias of aliases) {
+    const na = _norm(alias);
+    if (na.startsWith('__EMPTY') || na.length < 4) continue;
+    const match = columnas.find(c => _norm(c).includes(na) || na.includes(_norm(c)));
+    if (match) return match;
+  }
+  // 4. Caso especial: observaciones — escanea claves reales de los proyectos
+  if (campo === 'observaciones') {
+    // Buscar en columnas por "OBSERVAC"
+    const porNombre = columnas.find(c => {
+      const nc = _norm(c);
+      return nc.includes('OBSERVAC') && !c.startsWith('__EMPTY') && detectarCampo(c) !== 'observacion';
+    });
+    if (porNombre) return porNombre;
+    // Buscar en datos reales: primer proyecto que tenga una clave con "OBSERVAC" y valor no vacío
+    for (const p of proyectos) {
+      for (const k of Object.keys(p)) {
+        const nk = _norm(k);
+        if (nk.includes('OBSERVAC') && !k.startsWith('__EMPTY') && detectarCampo(k) !== 'observacion') {
+          const v = p[k];
+          if (v !== undefined && v !== '' && v !== '-') return k;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function getColumnasMostrar(limit) {
-  const campoOrden = ['municipio','subregion','nombre','observacion','estado','año','valor','avance','fuente','aporte_dep','aporte_mun','contrato'];
+  const campoOrden = ['municipio','subregion','nombre','observacion','estado','año','valor','avance','fuente','observaciones'];
   const result = [];
   for (const campo of campoOrden) {
-    const col = columnas.find(c => detectarCampo(c) === campo);
+    const col = _colParaCampo(campo);
     if (col && !result.includes(col)) result.push(col);
     if (limit && result.length >= limit) break;
   }
-  // Completar con columnas no mapeadas si hay espacio
-  if (!limit || result.length < limit) {
+  // Solo agregar columnas no mapeadas si NO hay límite (vista completa sin límite)
+  if (!limit) {
     for (const c of columnas) {
-      if (!result.includes(c) && c !== '_id') {
-        result.push(c);
-        if (limit && result.length >= limit) break;
-      }
+      if (!result.includes(c) && c !== '_id') result.push(c);
     }
   }
   return limit ? result.slice(0, limit) : result;
@@ -1621,7 +1679,7 @@ function getColumnasMostrar(limit) {
 
 function inicializarTabla() {
   const head = document.getElementById('tablaHead');
-  const colsMostrar = getColumnasMostrar(9);
+  const colsMostrar = getColumnasMostrar(10);
   const chkAll = `<th class="col-check"><input type="checkbox" id="chkSelAll" title="Seleccionar todos" onchange="toggleSeleccionarTodos(this.checked)"></th>`;
   head.innerHTML = '<tr>' + chkAll + colsMostrar.map((c, i) => {
     const campo = detectarCampo(c);
@@ -1631,7 +1689,7 @@ function inicializarTabla() {
     } else {
       label = c.replace(/^__EMPTY_?\d*/i,'').replace(/^_EMPTY_?\d*/i,'').replace(/_/g,' ').trim() || c;
     }
-    const thClass = campo === 'nombre' ? ' class="col-nombre"' : campo === 'observacion' ? ' class="col-observacion"' : '';
+    const thClass = campo === 'nombre' ? ' class="col-nombre"' : campo === 'observacion' ? ' class="col-observacion"' : campo === 'observaciones' ? ' class="col-observaciones"' : '';
     return `<th${thClass} onclick="ordenarPor(${i})" title="${c}">${label}</th>`;
   }).join('') + (modoEditor ? '<th>ACCIONES</th>' : '') + '</tr>';
 
@@ -1755,7 +1813,7 @@ function ordenarPor(i) {
 }
 
 function renderTabla() {
-  const colsMostrar = getColumnasMostrar(9);
+  const colsMostrar = getColumnasMostrar(10);
   const inicio = (paginaActual - 1) * POR_PAGINA;
   const pagina = proyectosFiltrados.slice(inicio, inicio + POR_PAGINA);
   const body = document.getElementById('tablaBody');
@@ -1784,7 +1842,7 @@ function renderTabla() {
           return CAMPO_MAP[campoD][0];
         })();
         const vEsc = v.replace(/"/g, '&quot;').replace(/</g, '&lt;');
-        const extraClass = campoD === 'nombre' ? ' col-nombre' : campoD === 'observacion' ? ' col-observacion' : '';
+        const extraClass = campoD === 'nombre' ? ' col-nombre' : campoD === 'observacion' ? ' col-observacion' : campoD === 'observaciones' ? ' col-observaciones' : '';
         return `<td class="${extraClass}" contenteditable="true"
           data-idx="${globalIdx}" data-col="${colKey}" data-campo="${campoD}"
           onblur="guardarCeldaInline(this)"
@@ -1796,9 +1854,10 @@ function renderTabla() {
       // Modo solo visualización
       if (campoD === 'estado') return `<td>${badgeEstado(v||'—')}</td>`;
       if (campoD === 'nombre') return `<td class="col-nombre" title="${v}">${display}</td>`;
-      if (campoD === 'observacion') {
+      if (campoD === 'observacion' || campoD === 'observaciones') {
+        const cls = campoD === 'observacion' ? 'col-observacion' : 'col-observaciones';
         const corto = v.length > 80 ? v.slice(0, 80) + '…' : v;
-        return `<td class="col-observacion" title="${v}">${v === '' || v === '-' ? '<span style="color:#ccc">—</span>' : corto}</td>`;
+        return `<td class="${cls}" title="${v}">${v === '' || v === '-' ? '<span style="color:#ccc">—</span>' : corto}</td>`;
       }
       if (campoD === 'avance') {
         const pct = parseFloat(v);
@@ -1930,7 +1989,8 @@ function renderPaginacion() {
 //   "__EMPTY_2"(Indicador), "__EMPTY_3"(Proyecto/Actividad), "__EMPTY_4"(Descripción/Alcance),
 //   "__EMPTY_5"(Aporte Dpto), "__EMPTY_6"(Aporte Mpio), "__EMPTY_7"(Valor Total),
 //   "__EMPTY_8"(Fuente Financiación), "__EMPTY_9"(Modalidad), "__EMPTY_10"(Vigencia),
-//   "__EMPTY_11"(Estado), "__EMPTY_12"(% Avance)
+//   "__EMPTY_11"(Estado), "__EMPTY_12"(% Avance),
+//   "__EMPTY_13"(Observaciones/Alertas), "__EMPTY_14"(?), "__EMPTY_15"(?)
 const CAMPO_MAP = {
   // Aporte Municipio/Departamento primero para evitar que "MUNICIPIO" substring les coincida
   aporte_dep:  ['__EMPTY_5', 'Aporte Departamento ', 'Aporte Departamento', 'APORTE DEPARTAMENTO'],
@@ -1940,7 +2000,8 @@ const CAMPO_MAP = {
   subregion:   ['__EMPTY_1', 'Subregión', 'Subregion', 'SUBREGION', 'SUBREGIÓN', 'subregion', 'subregión'],
   tipo:        ['__EMPTY_2', 'Indicador ', 'Indicador', 'TIPO', 'TIPO_PROYECTO', 'tipo'],
   nombre:      ['__EMPTY_3', 'Proyecto/ Actividad', 'Proyecto/Actividad', 'NOMBRE_PROYECTO', 'NOMBRE PROYECTO', 'nombre', 'proyecto'],
-  observacion: ['__EMPTY_4', 'Descripción/Alcance ', 'Descripción/Alcance', 'Descripcion/Alcance', 'OBSERVACION', 'OBSERVACIÓN', 'OBSERVACIONES', 'obs'],
+  observacion: ['__EMPTY_4', 'Descripción/Alcance ', 'Descripción/Alcance', 'Descripcion/Alcance', 'obs'],
+  observaciones: ['__EMPTY_13', 'Observaciones/ Alertas', 'Observaciones/Alertas', 'OBSERVACIONES/ ALERTAS', 'OBSERVACIONES/ALERTAS', 'OBSERVACIONES', 'OBSERVACION', 'OBSERVACIÓN', 'Observaciones', 'notas', 'NOTAS'],
   valor:       ['__EMPTY_7', 'Valor Total Proyecto', 'VALOR', 'INVERSION', 'INVERSIÓN', 'PRESUPUESTO', 'valor', 'inversion'],
   fuente:      ['__EMPTY_8', 'Fuente Financiación ', 'Fuente Financiación', 'Fuente Financiacion', 'FUENTE', 'FUENTE_FINANCIACION', 'fuente'],
   contrato:    ['__EMPTY_9', 'Modalidad Contratación', 'Modalidad Contratacion', 'CONTRATO', 'NRO_CONTRATO', 'contrato'],
@@ -1952,18 +2013,21 @@ const CAMPO_MAP = {
   gerencia:    ['GERENCIA', 'DEPENDENCIA', 'gerencia'],
 };
 
+// Normaliza una cadena: mayúsculas, colapsa espacios/saltos de línea, recorta
+function _norm(s) { return String(s).toUpperCase().replace(/[\s\r\n]+/g, ' ').trim(); }
+
 function detectarCampo(colName) {
-  const cn = colName.toUpperCase().trim();
-  // PASO 1: coincidencia exacta (prioridad máxima)
+  const cn = _norm(colName);
+  // PASO 1: coincidencia exacta normalizada
   for (const [campo, aliases] of Object.entries(CAMPO_MAP)) {
-    if (aliases.some(a => cn === a.toUpperCase().trim())) return campo;
+    if (aliases.some(a => cn === _norm(a))) return campo;
   }
-  // PASO 2: coincidencia por substring (solo para aliases no-__EMPTY para evitar falsos positivos)
+  // PASO 2: substring (solo aliases no-__EMPTY)
   for (const [campo, aliases] of Object.entries(CAMPO_MAP)) {
     if (aliases.some(a => {
-      const au = a.toUpperCase().trim();
-      if (au.startsWith('__EMPTY')) return false; // solo exact match para __EMPTY*
-      return cn.includes(au) && au.length >= 4;   // substring pero alias debe tener ≥4 chars
+      const au = _norm(a);
+      if (au.startsWith('__EMPTY')) return false;
+      return cn.includes(au) && au.length >= 4;
     })) return campo;
   }
   return null;
@@ -1971,14 +2035,30 @@ function detectarCampo(colName) {
 
 function obtenerCampoProyecto(p, campo) {
   const aliases = CAMPO_MAP[campo] || [];
+  // Búsqueda exacta por alias
   for (const a of aliases) {
     if (p[a] !== undefined && p[a] !== '' && p[a] !== '-' && p[a] !== '—') return String(p[a]);
   }
-  // fallback: buscar en todas las columnas
+  // Fallback: comparar alias normalizados contra claves reales del proyecto
+  const normAliases = aliases.map(a => _norm(a));
+  for (const k of Object.keys(p)) {
+    const nk = _norm(k);
+    if (normAliases.includes(nk) && p[k] !== undefined && p[k] !== '' && p[k] !== '-' && p[k] !== '—') return String(p[k]);
+  }
+  // Fallback por detectarCampo
   for (const col of Object.keys(p)) {
     if (detectarCampo(col) === campo) {
       const v = p[col];
       if (v !== undefined && v !== '' && v !== '-') return String(v);
+    }
+  }
+  // Último recurso para observaciones: cualquier clave con "observac" que no sea __EMPTY
+  if (campo === 'observaciones') {
+    for (const col of Object.keys(p)) {
+      if (_norm(col).includes('OBSERVAC') && !col.startsWith('__EMPTY') && detectarCampo(col) !== 'observacion') {
+        const v = p[col];
+        if (v !== undefined && v !== '' && v !== '-') return String(v);
+      }
     }
   }
   return null;
@@ -2045,6 +2125,7 @@ function mostrarDetalle(idx) {
     { icono: '📍', titulo: 'Localización',   campos: ['municipio','subregion'] },
     { icono: '💰', titulo: 'Financiero',     campos: ['valor','aporte_dep','aporte_mun','fuente'] },
     { icono: '⚙️', titulo: 'Ejecución',     campos: ['estado','avance','año','contrato','contratista','gerencia'] },
+    { icono: '📝', titulo: 'Observaciones',  campos: ['observaciones'] },
   ];
 
   let seccionesHTML = '';
@@ -2089,7 +2170,7 @@ function mostrarDetalle(idx) {
     if (modoEditor) {
       cuerpo = `<table class="detalle-tabla"><tbody>` +
         filas.map(({label, v, col, campo}) => {
-          const rows = campo === 'observacion' ? 3 : 2;
+          const rows = ['observacion','observaciones'].includes(campo) ? 4 : 2;
           return `<tr>
             <td class="detalle-td-label">${label}</td>
             <td class="detalle-td-valor"><textarea class="campo-editable" rows="${rows}" data-col="${col}" style="width:100%;resize:vertical">${v||''}</textarea></td>
