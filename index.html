@@ -1587,7 +1587,7 @@ async function procesarExcelData(data) {
       });
     });
 
-    columnas = [...new Set(rows.flatMap(r => Object.keys(r)))];
+    columnas = [...new Set(rows.flatMap(r => Object.keys(r)).map(sanitizarClave))];
     document.getElementById('progresoCarga').style.display = 'block';
 
     // MODO REEMPLAZAR: eliminar todos los proyectos existentes primero
@@ -1612,7 +1612,7 @@ async function procesarExcelData(data) {
       const clean = {};
       for (const k in row) {
         const v = row[k];
-        clean[k] = (v instanceof Date) ? v.toLocaleDateString('es-CO') : String(v);
+        clean[sanitizarClave(k)] = (v instanceof Date) ? v.toLocaleDateString('es-CO') : String(v);
       }
 
       if (modoSubida === 'actualizar') {
@@ -2136,9 +2136,20 @@ const CAMPO_MAP = {
   gerencia:    ['GERENCIA', 'DEPENDENCIA', 'gerencia'],
 };
 
+// Sanitiza un nombre de campo para Firestore (no permite / ~ * [ ])
+function sanitizarClave(k) {
+  return String(k).replace(/[\/~*\[\]]/g, '_').replace(/__+/g, '_').trim();
+}
+
 // Normaliza una cadena: mayúsculas, colapsa espacios/saltos de línea, recorta
-// Unifica Nº (U+00BA ordinal) y N° (U+00B0 grado) para evitar fallos de detección
-function _norm(s) { return String(s).toUpperCase().replace(/[\s\r\n]+/g, ' ').replace(/º/g, '°').trim(); }
+// Unifica Nº/N° y trata / igual que _ para que alias con barra coincidan con claves sanitizadas
+function _norm(s) {
+  return String(s).toUpperCase()
+    .replace(/[\s\r\n]+/g, ' ')
+    .replace(/º/g, '°')
+    .replace(/\//g, '_')
+    .trim();
+}
 
 function detectarCampo(colName) {
   const cn = _norm(colName);
