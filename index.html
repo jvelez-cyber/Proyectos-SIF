@@ -1683,18 +1683,20 @@ async function sincronizarOneDrive() {
   document.getElementById('progresoFill').style.width = '10%';
   document.getElementById('progresoCargaTxt').textContent = 'Conectando con OneDrive...';
 
-  const PROXIES = [
-    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-    url => `https://thingproxy.freeboard.io/fetch/${url}`,
+  const INTENTOS = [
+    { label: 'directo',      fn: url => url },
+    { label: 'corsproxy.io', fn: url => `https://corsproxy.io/?${encodeURIComponent(url)}` },
+    { label: 'allorigins',   fn: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
+    { label: 'corsproxy.org',fn: url => `https://corsproxy.org/?${encodeURIComponent(url)}` },
   ];
 
   let lastError = null;
-  for (let i = 0; i < PROXIES.length; i++) {
-    const proxyUrl = PROXIES[i](ONEDRIVE_URL);
-    document.getElementById('progresoCargaTxt').textContent = `Conectando... (intento ${i + 1}/${PROXIES.length})`;
+  for (let i = 0; i < INTENTOS.length; i++) {
+    const { label, fn } = INTENTOS[i];
+    const fetchUrl = fn(ONEDRIVE_URL);
+    document.getElementById('progresoCargaTxt').textContent = `Conectando... (${label})`;
     try {
-      const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
+      const response = await fetch(fetchUrl, { signal: AbortSignal.timeout(40000) });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       document.getElementById('progresoFill').style.width = '30%';
@@ -1712,13 +1714,13 @@ async function sincronizarOneDrive() {
       return;
     } catch (err) {
       lastError = err;
-      console.warn(`Proxy ${i + 1} falló:`, err.message);
+      console.warn(`Intento ${label} falló:`, err.message);
     }
   }
 
   document.getElementById('progresoCarga').style.display = 'none';
-  mostrarToast("No se pudo sincronizar con OneDrive. Verifica tu conexión a internet.", true);
-  console.error("Todos los proxies fallaron:", lastError);
+  mostrarToast("No se pudo sincronizar. Sube el Excel manualmente en Modo Editor.", true);
+  console.error("Todos los intentos fallaron:", lastError);
 }
 
 // =============================================
