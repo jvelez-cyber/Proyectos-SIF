@@ -1288,7 +1288,7 @@ service cloud.firestore {<br>
     <input type="file" id="inputExcel" accept=".xlsx,.xls" onchange="procesarExcel(event)" />
     <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-        <button class="btn btn-azul btn-sm" onclick="sincronizarDesdeLocal()" title="Abre el archivo Excel desde la carpeta OneDrive sincronizada en tu equipo">☁️ Sincronizar de OneDrive</button>
+        <button class="btn btn-azul btn-sm" onclick="sincronizarOneDrive()" title="Sincronizar datos desde OneDrive">☁️ Sincronizar de OneDrive</button>
         <button class="btn btn-verde btn-sm" onclick="iniciarSubida('actualizar')" title="Actualiza proyectos existentes y agrega los nuevos">🔄 Actualizar/Agregar Local</button>
         <button class="btn btn-rojo btn-sm" onclick="iniciarSubida('reemplazar')" title="Elimina TODOS los proyectos y sube los del Excel">♻️ Reemplazar Todo Local</button>
       </div>
@@ -1738,19 +1738,20 @@ async function sincronizarOneDrive() {
   document.getElementById('progresoCargaTxt').textContent = 'Conectando con OneDrive...';
 
   const INTENTOS = [
-    { label: 'directo',      fn: url => url },
-    { label: 'corsproxy.io', fn: url => `https://corsproxy.io/?${encodeURIComponent(url)}` },
-    { label: 'allorigins',   fn: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}` },
-    { label: 'corsproxy.org',fn: url => `https://corsproxy.org/?${encodeURIComponent(url)}` },
+    { label: 'proxy 1', fn: url => `https://corsproxy.io/?${encodeURIComponent(url)}`,                     timeout: 90000 },
+    { label: 'proxy 2', fn: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,         timeout: 60000 },
+    { label: 'proxy 3', fn: url => `https://thingproxy.freeboard.io/fetch/${url}`,                          timeout: 60000 },
+    { label: 'proxy 4', fn: url => `https://corsproxy.org/?${encodeURIComponent(url)}`,                     timeout: 60000 },
+    { label: 'proxy 5', fn: url => `https://proxy.cors.sh/${url}`,                                          timeout: 60000 },
   ];
 
   let lastError = null;
   for (let i = 0; i < INTENTOS.length; i++) {
-    const { label, fn } = INTENTOS[i];
+    const { label, fn, timeout } = INTENTOS[i];
     const fetchUrl = fn(ONEDRIVE_URL);
-    document.getElementById('progresoCargaTxt').textContent = `Conectando... (${label})`;
+    document.getElementById('progresoCargaTxt').textContent = `Conectando... (${label} de ${INTENTOS.length})`;
     try {
-      const response = await fetch(fetchUrl, { signal: AbortSignal.timeout(40000) });
+      const response = await fetch(fetchUrl, { signal: AbortSignal.timeout(timeout) });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
       document.getElementById('progresoFill').style.width = '30%';
