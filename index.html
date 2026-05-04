@@ -1659,44 +1659,77 @@ async function procesarExcelData(data) {
 }
 
 // Verifica si han pasado 48 horas desde la última sincronización en este dispositivo
-async function checkAutoSync() {
-  const lastSync = localStorage.getItem('sif_last_sync');
-  const now = Date.now();
-  const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
-  
-  if (!lastSync || now - parseInt(lastSync) > FORTY_EIGHT_HOURS) {
-    mostrarToast("Sincronizando actualizaciones automáticas...");
-    // Guardamos la fecha actual inmediatamente para evitar múltiples ejecuciones
-    localStorage.setItem('sif_last_sync', now);
-    try {
-      await sincronizarOneDrive();
-    } catch(err) {
-      console.error("Fallo auto-sync:", err);
-      // Revertir para que vuelva a intentar la próxima vez
-      localStorage.removeItem('sif_last_sync');
-    }
+// ── IndexedDB: guarda/recupera el file handle del Excel OneDrive ──
+const SIF_IDB_NAME = 'sif_sync_db', SIF_IDB_STORE = 'handles';
+function _abrirIDB() {
+  return new Promise((res, rej) => {
+    const r = indexedDB.open(SIF_IDB_NAME, 1);
+    r.onupgradeneeded = e => e.target.result.createObjectStore(SIF_IDB_STORE);
+    r.onsuccess = e => res(e.target.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+async function _guardarHandle(handle) {
+  const db = await _abrirIDB();
+  return new Promise((res, rej) => {
+    const tx = db.transaction(SIF_IDB_STORE, 'readwrite');
+    tx.objectStore(SIF_IDB_STORE).put(handle, 'excel');
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+async function _leerHandle() {
+  try {
+    const db = await _abrirIDB();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(SIF_IDB_STORE, 'readonly');
+      const req = tx.objectStore(SIF_IDB_STORE).get('excel');
+      req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error);
+    });
+  } catch { return null; }
+}
+
+async function _leerYProcesarHandle(handle, silencioso = false) {
+  let perm = await handle.queryPermission({ mode: 'read' });
+  if (perm !== 'granted') perm = await handle.requestPermission({ mode: 'read' });
+  if (perm !== 'granted') { if (!silencioso) mostrarToast('Permiso denegado para leer el archivo.', true); return false; }
+  const file = await handle.getFile();
+  const arrayBuffer = await file.arrayBuffer();
+  if (arrayBuffer.byteLength < 1000) { if (!silencioso) mostrarToast('El archivo parece vacío.', true); return false; }
+  document.getElementById('progresoCarga').style.display = 'block';
+  document.getElementById('progresoFill').style.width = '40%';
+  document.getElementById('progresoCargaTxt').textContent = `Sincronizando "${file.name}"...`;
+  modoSubida = 'actualizar';
+  await procesarExcelData(new Uint8Array(arrayBuffer));
+  localStorage.setItem('sif_last_sync', Date.now());
+  return true;
+}
+
+// Botón: el usuario elige el archivo (solo la primera vez o para cambiarlo)
+async function sincronizarDesdeLocal() {
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: 'Excel SIF', accept: {
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+        'application/vnd.ms-excel': ['.xls']
+      }}],
+      multiple: false
+    });
+    await _guardarHandle(handle);
+    await _leerYProcesarHandle(handle);
+  } catch (err) {
+    if (err.name !== 'AbortError') mostrarToast('Error: ' + err.message, true);
   }
 }
 
-async function sincronizarDesdeLocal() {
-  // Abre selector de archivo — el usuario navega a su carpeta OneDrive local (ya sincronizada)
-  try {
-    const [fileHandle] = await window.showOpenFilePicker({
-      types: [{ description: 'Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'], 'application/vnd.ms-excel': ['.xls'] } }],
-      multiple: false
-    });
-    const file = await fileHandle.getFile();
-    const arrayBuffer = await file.arrayBuffer();
-    document.getElementById('progresoCarga').style.display = 'block';
-    document.getElementById('progresoFill').style.width = '40%';
-    document.getElementById('progresoCargaTxt').textContent = 'Procesando archivo...';
-    modoSubida = 'actualizar';
-    await procesarExcelData(new Uint8Array(arrayBuffer));
-  } catch (err) {
-    if (err.name !== 'AbortError') {
-      mostrarToast('Error abriendo archivo: ' + err.message, true);
-    }
-  }
+// Auto-sync: se ejecuta al cargar la página — sincroniza si pasaron ≥48 h
+const SYNC_INTERVALO_MS = 48 * 60 * 60 * 1000;
+async function checkAutoSync() {
+  const ultimo = parseInt(localStorage.getItem('sif_last_sync') || '0');
+  if (Date.now() - ultimo < SYNC_INTERVALO_MS) return;
+  const handle = await _leerHandle();
+  if (!handle) return;
+  const ok = await _leerYProcesarHandle(handle, true);
+  if (ok) mostrarToast('✓ Sincronización automática completada');
 }
 
 async function sincronizarOneDrive() {
