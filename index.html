@@ -2113,17 +2113,18 @@ const CAMPO_MAP = {
   observaciones: ['__EMPTY_13', 'Observaciones/ Alertas', 'Observaciones/Alertas', 'OBSERVACIONES/ ALERTAS', 'OBSERVACIONES/ALERTAS', 'OBSERVACIONES', 'OBSERVACION', 'OBSERVACIÓN', 'Observaciones', 'notas', 'NOTAS'],
   valor:       ['__EMPTY_7', 'Valor Total Proyecto', 'VALOR', 'INVERSION', 'INVERSIÓN', 'PRESUPUESTO', 'valor', 'inversion'],
   fuente:      ['__EMPTY_8', 'Fuente Financiación ', 'Fuente Financiación', 'Fuente Financiacion', 'FUENTE', 'FUENTE_FINANCIACION', 'fuente'],
-  contrato:    ['__EMPTY_9', 'Modalidad Contratación', 'Modalidad Contratacion', 'CONTRATO', 'NRO_CONTRATO', 'contrato'],
+  codigo:      ['N° Contrato/Convenio/BPIN', 'Nº Contrato/Convenio/BPIN', 'N° Contrato', 'CONTRATO_BPIN', 'BPIN', 'CODIGO', 'CÓDIGO', 'CUP', 'codigo'],
+  contrato:    ['__EMPTY_9', 'Modalidad Contratación', 'Modalidad Contratacion', 'MODALIDAD CONTRATACION', 'MODALIDAD', 'NRO_CONTRATO', 'contrato'],
   año:         ['__EMPTY_10', 'Vigencia', 'AÑO', 'ANO', 'VIGENCIA', 'año', 'vigencia'],
   estado:      ['__EMPTY_11', 'Estado ', 'Estado', 'ESTADO', 'estado'],
   avance:      ['__EMPTY_12', '% Avance ', '% Avance', 'AVANCE', '%AVANCE', 'PORCENTAJE', 'avance'],
-  codigo:      ['N° Contrato/Convenio/BPIN', 'N° Contrato', 'CONTRATO_BPIN', 'BPIN', 'CODIGO', 'CÓDIGO', 'CUP', 'codigo'],
   contratista: ['CONTRATISTA', 'EMPRESA', 'contratista'],
   gerencia:    ['GERENCIA', 'DEPENDENCIA', 'gerencia'],
 };
 
 // Normaliza una cadena: mayúsculas, colapsa espacios/saltos de línea, recorta
-function _norm(s) { return String(s).toUpperCase().replace(/[\s\r\n]+/g, ' ').trim(); }
+// Unifica Nº (U+00BA ordinal) y N° (U+00B0 grado) para evitar fallos de detección
+function _norm(s) { return String(s).toUpperCase().replace(/[\s\r\n]+/g, ' ').replace(/º/g, '°').trim(); }
 
 function detectarCampo(colName) {
   const cn = _norm(colName);
