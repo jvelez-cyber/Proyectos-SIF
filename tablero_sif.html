@@ -1454,7 +1454,7 @@ async function procesarExcel(event) {
 const LABELS_CAMPO = {
   nombre:'PROYECTO / ACTIVIDAD', municipio:'MUNICIPIO', subregion:'SUBREGIÓN',
   estado:'ESTADO', tipo:'INDICADOR', año:'VIGENCIA', valor:'VALOR TOTAL',
-  fuente:'FUENTE FINANCIACIÓN', codigo:'CÓDIGO', observacion:'DESCRIPCIÓN / ALCANCE',
+  fuente:'FUENTE FINANCIACIÓN', codigo:'BPIN / CÓDIGO', observacion:'DESCRIPCIÓN / ALCANCE',
   gerencia:'GERENCIA', contrato:'MODALIDAD CONTRATACIÓN', contratista:'CONTRATISTA',
   progress:'% PROGRESS', dep_contribution:'GOVERNANCE CONTRIBUTION', mun_contribution:'MUNICIPALITY CONTRIBUTION',
   observaciones:'OBSERVACIONES'
@@ -1462,7 +1462,7 @@ const LABELS_CAMPO = {
 
 // Devuelve columnas en orden semántico lógico para mostrar en la tabla
 function getColumnasMostrar(limit) {
-  const campoOrden = ['municipio','subregion','nombre','observacion','estado','año','valor','avance','fuente','aporte_dep','aporte_mun','contrato'];
+  const campoOrden = ['municipio','subregion','nombre','codigo','observacion','estado','año','valor','avance','contrato','fuente','aporte_dep','aporte_mun'];
   const result = [];
   for (const campo of campoOrden) {
     const col = columnas.find(c => detectarCampo(c) === campo);
@@ -1483,7 +1483,7 @@ function getColumnasMostrar(limit) {
 
 function inicializarTabla() {
   const head = document.getElementById('tablaHead');
-  const colsMostrar = getColumnasMostrar(9);
+  const colsMostrar = getColumnasMostrar(10);
   const chkAll = `<th class="col-check"><input type="checkbox" id="chkSelAll" title="Seleccionar todos" onchange="toggleSeleccionarTodos(this.checked)"></th>`;
   head.innerHTML = '<tr>' + chkAll + colsMostrar.map((c, i) => {
     const campo = detectarCampo(c);
@@ -1616,7 +1616,7 @@ function ordenarPor(i) {
 }
 
 function renderTabla() {
-  const colsMostrar = getColumnasMostrar(9);
+  const colsMostrar = getColumnasMostrar(10);
   const inicio = (paginaActual - 1) * POR_PAGINA;
   const pagina = proyectosFiltrados.slice(inicio, inicio + POR_PAGINA);
   const body = document.getElementById('tablaBody');
@@ -1787,7 +1787,7 @@ const CAMPO_MAP = {
   año:         ['__EMPTY_10', 'Vigencia', 'AÑO', 'ANO', 'VIGENCIA', 'año', 'vigencia'],
   estado:      ['__EMPTY_11', 'Estado ', 'Estado', 'ESTADO', 'estado'],
   avance:      ['__EMPTY_12', '% Avance ', '% Avance', 'AVANCE', '%AVANCE', 'PORCENTAJE', 'avance'],
-  codigo:      ['CODIGO', 'CÓDIGO', 'CUP', 'codigo'],
+  codigo:      ['BPIN', 'CODIGO', 'CÓDIGO', 'CUP', 'NRO_BPIN', 'codigo'],
   contratista: ['CONTRATISTA', 'EMPRESA', 'contratista'],
   gerencia:    ['GERENCIA', 'DEPENDENCIA', 'gerencia'],
 };
