@@ -1682,29 +1682,43 @@ async function sincronizarOneDrive() {
   document.getElementById('progresoCarga').style.display = 'block';
   document.getElementById('progresoFill').style.width = '10%';
   document.getElementById('progresoCargaTxt').textContent = 'Conectando con OneDrive...';
-  
-  try {
-    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(ONEDRIVE_URL);
-    const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error("No se pudo descargar el archivo de OneDrive");
-    
-    document.getElementById('progresoFill').style.width = '30%';
-    document.getElementById('progresoCargaTxt').textContent = 'Descargando datos...';
-    
-    const arrayBuffer = await response.arrayBuffer();
-    const data = new Uint8Array(arrayBuffer);
-    
-    document.getElementById('progresoFill').style.width = '50%';
-    document.getElementById('progresoCargaTxt').textContent = 'Procesando archivo...';
-    
-    modoSubida = 'actualizar'; // Sincronización siempre actualiza
-    await procesarExcelData(data);
-    
-  } catch (error) {
-    console.error(error);
-    document.getElementById('progresoCarga').style.display = 'none';
-    mostrarToast("Error sincronizando: " + error.message, true);
+
+  const PROXIES = [
+    url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+    url => `https://thingproxy.freeboard.io/fetch/${url}`,
+  ];
+
+  let lastError = null;
+  for (let i = 0; i < PROXIES.length; i++) {
+    const proxyUrl = PROXIES[i](ONEDRIVE_URL);
+    document.getElementById('progresoCargaTxt').textContent = `Conectando... (intento ${i + 1}/${PROXIES.length})`;
+    try {
+      const response = await fetch(proxyUrl, { signal: AbortSignal.timeout(15000) });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      document.getElementById('progresoFill').style.width = '30%';
+      document.getElementById('progresoCargaTxt').textContent = 'Descargando datos...';
+
+      const arrayBuffer = await response.arrayBuffer();
+      if (arrayBuffer.byteLength < 1000) throw new Error('Archivo vacío o inválido');
+
+      const data = new Uint8Array(arrayBuffer);
+      document.getElementById('progresoFill').style.width = '50%';
+      document.getElementById('progresoCargaTxt').textContent = 'Procesando archivo...';
+
+      modoSubida = 'actualizar';
+      await procesarExcelData(data);
+      return;
+    } catch (err) {
+      lastError = err;
+      console.warn(`Proxy ${i + 1} falló:`, err.message);
+    }
   }
+
+  document.getElementById('progresoCarga').style.display = 'none';
+  mostrarToast("No se pudo sincronizar con OneDrive. Verifica tu conexión a internet.", true);
+  console.error("Todos los proxies fallaron:", lastError);
 }
 
 // =============================================
