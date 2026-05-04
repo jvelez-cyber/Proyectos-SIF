@@ -1288,7 +1288,7 @@ service cloud.firestore {<br>
     <input type="file" id="inputExcel" accept=".xlsx,.xls" onchange="procesarExcel(event)" />
     <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-        <button class="btn btn-azul btn-sm" onclick="sincronizarOneDrive()" title="Sincronizar archivo Excel de OneDrive de forma automática">☁️ Sincronizar de OneDrive</button>
+        <button class="btn btn-azul btn-sm" onclick="sincronizarDesdeLocal()" title="Abre el archivo Excel desde la carpeta OneDrive sincronizada en tu equipo">☁️ Sincronizar de OneDrive</button>
         <button class="btn btn-verde btn-sm" onclick="iniciarSubida('actualizar')" title="Actualiza proyectos existentes y agrega los nuevos">🔄 Actualizar/Agregar Local</button>
         <button class="btn btn-rojo btn-sm" onclick="iniciarSubida('reemplazar')" title="Elimina TODOS los proyectos y sube los del Excel">♻️ Reemplazar Todo Local</button>
       </div>
@@ -1674,6 +1674,27 @@ async function checkAutoSync() {
       console.error("Fallo auto-sync:", err);
       // Revertir para que vuelva a intentar la próxima vez
       localStorage.removeItem('sif_last_sync');
+    }
+  }
+}
+
+async function sincronizarDesdeLocal() {
+  // Abre selector de archivo — el usuario navega a su carpeta OneDrive local (ya sincronizada)
+  try {
+    const [fileHandle] = await window.showOpenFilePicker({
+      types: [{ description: 'Excel', accept: { 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'], 'application/vnd.ms-excel': ['.xls'] } }],
+      multiple: false
+    });
+    const file = await fileHandle.getFile();
+    const arrayBuffer = await file.arrayBuffer();
+    document.getElementById('progresoCarga').style.display = 'block';
+    document.getElementById('progresoFill').style.width = '40%';
+    document.getElementById('progresoCargaTxt').textContent = 'Procesando archivo...';
+    modoSubida = 'actualizar';
+    await procesarExcelData(new Uint8Array(arrayBuffer));
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      mostrarToast('Error abriendo archivo: ' + err.message, true);
     }
   }
 }
