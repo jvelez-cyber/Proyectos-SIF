@@ -47,8 +47,9 @@ window.dispatchEvent(new Event('firebaseReady'));
   --rojo: #c0392b;
   --naranja: #e67e22;
   --azul: #2980b9;
-  --sombra: 0 4px 20px rgba(0,0,0,0.12);
-  --radio: 8px;
+  --sombra: 0 6px 16px rgba(0,0,0,0.06);
+  --sombra-hover: 0 12px 24px rgba(0,0,0,0.12);
+  --radio: 14px;
   --fuente-titulo: 'Oswald', sans-serif;
   --fuente-cuerpo: 'Source Sans 3', sans-serif;
 }
@@ -56,7 +57,7 @@ window.dispatchEvent(new Event('firebaseReady'));
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-  background: #ecf0e8;
+  background: #f4f7f4;
   font-family: var(--fuente-cuerpo);
   color: var(--gris-oscuro);
   min-height: 100vh;
@@ -64,12 +65,16 @@ body {
 
 /* ============ HEADER ============ */
 header {
-  background: linear-gradient(135deg, var(--verde-oscuro) 0%, var(--verde) 60%, var(--verde-claro) 100%);
+  background: rgba(15, 77, 28, 0.9);
+  background: linear-gradient(135deg, rgba(15, 77, 28, 0.92) 0%, rgba(26, 122, 46, 0.92) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   padding: 0;
   position: sticky;
   top: 0;
   z-index: 1000;
-  box-shadow: 0 3px 16px rgba(0,0,0,0.25);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.15);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
   overflow: visible;
 }
 
@@ -141,9 +146,10 @@ header {
   font-size: 0.82rem;
   font-weight: 600;
   letter-spacing: 0.3px;
-  transition: all 0.2s;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   display: inline-flex; align-items: center; gap: 6px;
 }
+.btn:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
 
 .btn-amarillo { background: var(--amarillo); color: var(--verde-oscuro); }
 .btn-amarillo:hover { background: var(--amarillo-claro); transform: translateY(-1px); }
@@ -214,16 +220,24 @@ td[contenteditable="true"].guardado  { box-shadow: inset 0 0 0 2px #2ea84a; back
 }
 
 .kpi {
-  background: #fff;
+  background: rgba(255,255,255,0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   border-radius: var(--radio);
-  padding: 14px 18px;
+  padding: 16px 20px;
   box-shadow: var(--sombra);
-  border-left: 4px solid var(--verde);
+  border-left: 5px solid var(--verde);
+  border-top: 1px solid rgba(255,255,255,0.6);
   position: relative;
   overflow: hidden;
   display: flex;
   align-items: center;
   gap: 14px;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+.kpi:hover {
+  transform: translateY(-4px) scale(1.01);
+  box-shadow: var(--sombra-hover);
 }
 
 .kpi-info { flex: 1; min-width: 0; }
@@ -454,11 +468,16 @@ thead th.sort-desc::after { content: ' ▼'; font-size: 0.65rem; }
 
 tbody tr {
   border-bottom: 1px solid #e8ece4;
-  transition: background 0.15s;
+  transition: all 0.25s ease;
   cursor: pointer;
 }
 
-tbody tr:hover { background: #f0f5ee; }
+tbody tr:hover { 
+  background: #f0f5ee;
+  transform: scale(1.002);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  z-index: 10; position: relative;
+}
 tbody tr.activa { background: #dff0e5; }
 
 tbody td {
@@ -504,29 +523,47 @@ thead th.col-observaciones { min-width: 120px; }
   white-space: nowrap;
 }
 
-.estado-ejecucion { background: #d5f0d8; color: #1a7a2e; }
-.estado-terminado  { background: #d0e8f5; color: #1a5a8e; }
-.estado-contratado { background: #fef3c5; color: #9a7800; }
-.estado-formulacion{ background: #fde8d8; color: #9a4200; }
-.estado-otro       { background: #e8e8e8; color: #555; }
+.estado-ejecucion    { background: #d5f0d8; color: #1a7a2e; }
+.estado-terminado    { background: #d0e8f5; color: #1a5a8e; }
+.estado-contratado   { background: #fef3c5; color: #9a7800; }
+.estado-formulacion  { background: #fde8d8; color: #9a4200; }
+.estado-por-iniciar  { background: #e8e0f5; color: #5b2d8e; }
+.estado-suspendido   { background: #fde0e0; color: #a82020; }
+.estado-aprobado     { background: #d8f0e8; color: #0e6e4e; }
+.estado-adjudicado   { background: #e0ecf8; color: #2a5a9a; }
+.estado-otro         { background: #e8e8e8; color: #555; }
 
-/* ============ DETALLE PROYECTO ============ */
+/* ============ DETALLE PROYECTO OFFCANVAS ============ */
+.detalle-overlay {
+  position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 1999;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.4s ease;
+}
+.detalle-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .panel-detalle {
-  grid-column: 1 / -1;
+  position: fixed;
+  top: 0; right: -600px;
+  width: 100%; max-width: 550px;
+  height: 100vh;
   background: #fff;
-  border-radius: var(--radio);
-  box-shadow: var(--sombra);
+  box-shadow: -10px 0 40px rgba(0,0,0,0.15);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+  transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   overflow: hidden;
-  display: none;
-  animation: slideDown 0.3s ease;
 }
 
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-
-.panel-detalle.visible { display: block; }
+.panel-detalle.visible { right: 0; }
 
 .detalle-banner {
   background: linear-gradient(135deg, var(--verde-oscuro) 0%, var(--verde) 100%);
@@ -580,6 +617,9 @@ thead th.col-observaciones { min-width: 120px; }
 
 .detalle-body {
   padding: 24px 28px;
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
 }
 
 /* SECCIONES DEL DETALLE */
@@ -1084,6 +1124,7 @@ input[type="file"] { display: none; }
     <div class="header-controles">
       <div class="modo-badge" id="modoBadge">⚡ Visor</div>
       <button class="btn btn-blanco btn-sm" onclick="toggleModo()">🔑 Modo Editor</button>
+      <button class="btn btn-verde btn-sm" id="btnExportarExcel" onclick="exportarExcel()">⬇ Exportar Excel</button>
       <button class="btn btn-amarillo btn-sm" id="btnExportarWord" onclick="exportarWord()">⬇ Exportar Word</button>
     </div>
   </div>
@@ -1120,8 +1161,8 @@ input[type="file"] { display: none; }
 <!-- MODAL EXPORTAR -->
 <div class="modal-overlay" id="modalExport">
   <div class="modal" style="max-width:420px">
-    <h3>⬇ Exportar Word</h3>
-    <p id="exportMsg">Selecciona qué información deseas exportar al documento Word.</p>
+    <h3 id="exportModalTitle">⬇ Exportar</h3>
+    <p id="exportMsg">Selecciona qué información deseas exportar.</p>
     <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px">
       <button class="btn btn-verde" id="btnExportFiltrados" onclick="ejecutarExport('filtrados')" style="justify-content:center;font-size:0.9rem"></button>
       <button class="btn btn-blanco" id="btnExportTodos" onclick="ejecutarExport('todos')" style="justify-content:center;font-size:0.9rem"></button>
@@ -1247,8 +1288,9 @@ service cloud.firestore {<br>
     <input type="file" id="inputExcel" accept=".xlsx,.xls" onchange="procesarExcel(event)" />
     <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-end">
       <div style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-        <button class="btn btn-verde btn-sm" onclick="iniciarSubida('actualizar')" title="Actualiza proyectos existentes y agrega los nuevos">🔄 Actualizar/Agregar</button>
-        <button class="btn btn-rojo btn-sm" onclick="iniciarSubida('reemplazar')" title="Elimina TODOS los proyectos y sube los del Excel">♻️ Reemplazar Todo</button>
+        <button class="btn btn-azul btn-sm" onclick="sincronizarOneDrive()" title="Sincronizar archivo Excel de OneDrive de forma automática">☁️ Sincronizar de OneDrive</button>
+        <button class="btn btn-verde btn-sm" onclick="iniciarSubida('actualizar')" title="Actualiza proyectos existentes y agrega los nuevos">🔄 Actualizar/Agregar Local</button>
+        <button class="btn btn-rojo btn-sm" onclick="iniciarSubida('reemplazar')" title="Elimina TODOS los proyectos y sube los del Excel">♻️ Reemplazar Todo Local</button>
       </div>
       <div id="progresoCarga" style="display:none;width:240px">
         <div style="font-size:0.75rem;color:#6b7565;margin-bottom:4px" id="progresoCargaTxt">Procesando…</div>
@@ -1293,6 +1335,7 @@ service cloud.firestore {<br>
     </div>
     <div class="tabla-controles">
       <input class="buscador" id="buscador" type="text" placeholder="🔍 Buscar por nombre, municipio, subregión..." oninput="filtrarTabla()" />
+      <input class="buscador" id="buscadorBpin" type="text" placeholder="🔍 Buscar BPIN / Contrato..." oninput="filtrarTabla()" style="max-width: 190px;" />
       <select class="filtro-select" id="filtroEstado" onchange="filtrarTabla()">
         <option value="">Todos los estados</option>
         <option value="ejecucion">En Ejecución</option>
@@ -1321,6 +1364,7 @@ service cloud.firestore {<br>
     </div>
   </div>
 
+  <div class="detalle-overlay" id="detalleOverlay" onclick="cerrarDetalle()"></div>
   <!-- DETALLE -->
   <div class="panel-detalle" id="panelDetalle">
     <div class="detalle-banner" id="detalleBanner">
@@ -1363,16 +1407,21 @@ let municipioLayers = {};
 let municipioSeleccionado = null;
 let municipioHighlightBusqueda = null;
 let modoSubida = 'actualizar';
+let modoExportDoc = 'word';
 const PIN = "sif2025"; // PIN de administrador
 const COLUMNAS_DEFAULT = ['NOMBRE_PROYECTO','MUNICIPIO','SUBREGION','ESTADO','TIPO','AÑO','VALOR','FUENTE','CODIGO','CONTRATO','CONTRATISTA','AVANCE','OBSERVACIONES','GERENCIA'];
 
 // =============================================
 // FIREBASE INIT
 // =============================================
-window.addEventListener('firebaseReady', () => {
+const ONEDRIVE_URL = "https://gobantioquia-my.sharepoint.com/:x:/g/personal/vtobonl_antioquia_gov_co/IQC-2boDTWHVTb2G0pz4v8eeAaBGAYQgSV30hGREjzAlc1c?download=1";
+
+window.addEventListener('firebaseReady', async () => {
   db = window._db;
   firebase = window._firebase;
-  cargarDesdeFirebase();
+  await cargarDesdeFirebase();
+  // Verificar sincronización automática cada 48h
+  checkAutoSync();
 });
 
 async function cargarDesdeFirebase() {
@@ -1479,132 +1528,183 @@ async function procesarExcel(event) {
 
   const reader = new FileReader();
   reader.onload = async (e) => {
-    try {
-      const data = new Uint8Array(e.target.result);
-      const wb = XLSX.read(data, { type: 'array', cellDates: true });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const rowsRaw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+    const data = new Uint8Array(e.target.result);
+    await procesarExcelData(data);
+  };
+  reader.readAsArrayBuffer(file);
+  event.target.value = '';
+}
 
-      // Extraer fila de encabezados reales (fila 2 del Excel SIF)
-      const headerRow = rowsRaw.find(row => {
-        const vals = Object.values(row).map(v => String(v).trim().toLowerCase());
-        return vals.includes('municipio') && (vals.includes('subregión') || vals.includes('subregion'));
+async function procesarExcelData(data) {
+  try {
+    const wb = XLSX.read(data, { type: 'array', cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rowsRaw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+    // Extraer fila de encabezados reales (fila 2 del Excel SIF)
+    const headerRow = rowsRaw.find(row => {
+      const vals = Object.values(row).map(v => String(v).trim().toLowerCase());
+      return vals.includes('municipio') && (vals.includes('subregión') || vals.includes('subregion'));
+    });
+    // Mapeo __EMPTY_X → nombre real de columna
+    const keyRemap = {};
+    if (headerRow) {
+      Object.entries(headerRow).forEach(([k, v]) => {
+        const vStr = String(v).trim();
+        if (vStr) keyRemap[k] = vStr;
       });
-      // Mapeo __EMPTY_X → nombre real de columna
-      const keyRemap = {};
-      if (headerRow) {
-        Object.entries(headerRow).forEach(([k, v]) => {
-          const vStr = String(v).trim();
-          if (vStr) keyRemap[k] = vStr;
-        });
+    }
+
+    // Filtrar fila de etiquetas y filas vacías, luego renombrar claves
+    const rows = rowsRaw.filter(row => {
+      const vals = Object.values(row).map(v => String(v).trim().toLowerCase());
+      if (vals.includes('municipio') && (vals.includes('subregión') || vals.includes('subregion'))) return false;
+      return vals.some(v => v !== '');
+    }).map(row => {
+      if (!Object.keys(keyRemap).length) return row;
+      const remapped = {};
+      Object.entries(row).forEach(([k, v]) => {
+        remapped[keyRemap[k] || k] = v;
+      });
+      return remapped;
+    });
+
+    if (rows.length === 0) { mostrarToast("Excel vacío o sin datos", true); return; }
+
+    // Propagar valores de celdas combinadas (ej: municipio/subregión en Excel SIF)
+    let lastVals = {};
+    rows.forEach(row => {
+      Object.keys(row).forEach(k => {
+        const campo = detectarCampo(k);
+        if (campo === 'municipio' || campo === 'subregion') {
+          const v = String(row[k] || '').trim();
+          if (v && !/^\d+$/.test(v)) { // valor no vacío y no puramente numérico
+            lastVals[k] = v;
+          } else if (!v && lastVals[k]) {
+            row[k] = lastVals[k]; // propagar último valor conocido
+          }
+        }
+      });
+    });
+
+    columnas = [...new Set(rows.flatMap(r => Object.keys(r)))];
+    document.getElementById('progresoCarga').style.display = 'block';
+
+    // MODO REEMPLAZAR: eliminar todos los proyectos existentes primero
+    if (modoSubida === 'reemplazar') {
+      mostrarToast("Eliminando datos anteriores…");
+      document.getElementById('progresoCargaTxt').textContent = 'Eliminando datos anteriores…';
+      const snap = await firebase.getDocs(firebase.collection(db, "proyectos"));
+      let del = 0;
+      for (const d of snap.docs) {
+        await firebase.deleteDoc(firebase.doc(db, "proyectos", d.id));
+        del++;
+        document.getElementById('progresoCargaTxt').textContent = `Eliminando… ${del}/${snap.size}`;
+      }
+      proyectos = [];
+    }
+
+    mostrarToast("Subiendo " + rows.length + " proyectos…");
+    let ok = 0, actualizados = 0;
+
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i];
+      const clean = {};
+      for (const k in row) {
+        const v = row[k];
+        clean[k] = (v instanceof Date) ? v.toLocaleDateString('es-CO') : String(v);
       }
 
-      // Filtrar fila de etiquetas y filas vacías, luego renombrar claves
-      const rows = rowsRaw.filter(row => {
-        const vals = Object.values(row).map(v => String(v).trim().toLowerCase());
-        if (vals.includes('municipio') && (vals.includes('subregión') || vals.includes('subregion'))) return false;
-        return vals.some(v => v !== '');
-      }).map(row => {
-        if (!Object.keys(keyRemap).length) return row;
-        const remapped = {};
-        Object.entries(row).forEach(([k, v]) => {
-          remapped[keyRemap[k] || k] = v;
+      if (modoSubida === 'actualizar') {
+        const codigoRow = (obtenerCampoProyecto(clean, 'codigo') || '').toLowerCase().trim();
+        const nombreRow = (obtenerCampoProyecto(clean, 'nombre') || '').toLowerCase().trim();
+
+        const existing = proyectos.find(p => {
+          const pCodigo = (obtenerCampoProyecto(p, 'codigo') || '').toLowerCase().trim();
+          const pNombre = (obtenerCampoProyecto(p, 'nombre') || '').toLowerCase().trim();
+          return (codigoRow && pCodigo && codigoRow === pCodigo) ||
+                 (nombreRow && pNombre && nombreRow === pNombre);
         });
-        return remapped;
-      });
 
-      if (rows.length === 0) { mostrarToast("Excel vacío o sin datos", true); return; }
-
-      // Propagar valores de celdas combinadas (ej: municipio/subregión en Excel SIF)
-      // SheetJS deja en blanco las filas "fusionadas" salvo la primera del grupo
-      let lastVals = {};
-      rows.forEach(row => {
-        Object.keys(row).forEach(k => {
-          const campo = detectarCampo(k);
-          if (campo === 'municipio' || campo === 'subregion') {
-            const v = String(row[k] || '').trim();
-            if (v && !/^\d+$/.test(v)) { // valor no vacío y no puramente numérico
-              lastVals[k] = v;
-            } else if (!v && lastVals[k]) {
-              row[k] = lastVals[k]; // propagar último valor conocido
-            }
-          }
-        });
-      });
-
-      columnas = [...new Set(rows.flatMap(r => Object.keys(r)))];
-      document.getElementById('progresoCarga').style.display = 'block';
-
-      // MODO REEMPLAZAR: eliminar todos los proyectos existentes primero
-      if (modoSubida === 'reemplazar') {
-        mostrarToast("Eliminando datos anteriores…");
-        document.getElementById('progresoCargaTxt').textContent = 'Eliminando datos anteriores…';
-        const snap = await firebase.getDocs(firebase.collection(db, "proyectos"));
-        let del = 0;
-        for (const d of snap.docs) {
-          await firebase.deleteDoc(firebase.doc(db, "proyectos", d.id));
-          del++;
-          document.getElementById('progresoCargaTxt').textContent = `Eliminando… ${del}/${snap.size}`;
-        }
-        proyectos = [];
-      }
-
-      mostrarToast("Subiendo " + rows.length + " proyectos…");
-      let ok = 0, actualizados = 0;
-
-      for (let i = 0; i < rows.length; i++) {
-        const row = rows[i];
-        const clean = {};
-        for (const k in row) {
-          const v = row[k];
-          clean[k] = (v instanceof Date) ? v.toLocaleDateString('es-CO') : String(v);
-        }
-
-        if (modoSubida === 'actualizar') {
-          // Buscar si ya existe por código o nombre (usando CAMPO_MAP para compatibilidad con claves SheetJS)
-          const codigoRow = (obtenerCampoProyecto(clean, 'codigo') || '').toLowerCase().trim();
-          const nombreRow = (obtenerCampoProyecto(clean, 'nombre') || '').toLowerCase().trim();
-
-          const existing = proyectos.find(p => {
-            const pCodigo = (obtenerCampoProyecto(p, 'codigo') || '').toLowerCase().trim();
-            const pNombre = (obtenerCampoProyecto(p, 'nombre') || '').toLowerCase().trim();
-            return (codigoRow && pCodigo && codigoRow === pCodigo) ||
-                   (nombreRow && pNombre && nombreRow === pNombre);
-          });
-
-          if (existing && existing._id) {
-            await firebase.updateDoc(firebase.doc(db, "proyectos", existing._id), clean);
-            actualizados++;
-          } else {
-            await firebase.addDoc(firebase.collection(db, "proyectos"), clean);
-            ok++;
-          }
+        if (existing && existing._id) {
+          await firebase.updateDoc(firebase.doc(db, "proyectos", existing._id), clean);
+          actualizados++;
         } else {
           await firebase.addDoc(firebase.collection(db, "proyectos"), clean);
           ok++;
         }
-
-        const pct = Math.round(((i + 1) / rows.length) * 100);
-        document.getElementById('progresoFill').style.width = pct + '%';
-        document.getElementById('progresoCargaTxt').textContent = `Subiendo… ${pct}%`;
-      }
-
-      document.getElementById('progresoCarga').style.display = 'none';
-      if (modoSubida === 'actualizar') {
-        mostrarToast(`✓ ${ok} nuevos agregados · ${actualizados} actualizados`);
       } else {
-        mostrarToast(`✓ ${ok} proyectos subidos a Firebase`);
+        await firebase.addDoc(firebase.collection(db, "proyectos"), clean);
+        ok++;
       }
-      await cargarDesdeFirebase();
 
-    } catch(err) {
-      console.error(err);
-      document.getElementById('progresoCarga').style.display = 'none';
-      mostrarToast("Error procesando Excel: " + err.message, true);
+      const pct = Math.round(((i + 1) / rows.length) * 100);
+      document.getElementById('progresoFill').style.width = pct + '%';
+      document.getElementById('progresoCargaTxt').textContent = `Subiendo… ${pct}%`;
     }
-  };
-  reader.readAsArrayBuffer(file);
-  event.target.value = '';
+
+    document.getElementById('progresoCarga').style.display = 'none';
+    if (modoSubida === 'actualizar') {
+      mostrarToast(`✓ ${ok} nuevos agregados · ${actualizados} actualizados`);
+    } else {
+      mostrarToast(`✓ ${ok} proyectos subidos a Firebase`);
+    }
+    await cargarDesdeFirebase();
+
+  } catch(err) {
+    console.error(err);
+    document.getElementById('progresoCarga').style.display = 'none';
+    mostrarToast("Error procesando Excel: " + err.message, true);
+  }
+}
+
+// Verifica si han pasado 48 horas desde la última sincronización en este dispositivo
+async function checkAutoSync() {
+  const lastSync = localStorage.getItem('sif_last_sync');
+  const now = Date.now();
+  const FORTY_EIGHT_HOURS = 48 * 60 * 60 * 1000;
+  
+  if (!lastSync || now - parseInt(lastSync) > FORTY_EIGHT_HOURS) {
+    mostrarToast("Sincronizando actualizaciones automáticas...");
+    // Guardamos la fecha actual inmediatamente para evitar múltiples ejecuciones
+    localStorage.setItem('sif_last_sync', now);
+    try {
+      await sincronizarOneDrive();
+    } catch(err) {
+      console.error("Fallo auto-sync:", err);
+      // Revertir para que vuelva a intentar la próxima vez
+      localStorage.removeItem('sif_last_sync');
+    }
+  }
+}
+
+async function sincronizarOneDrive() {
+  document.getElementById('progresoCarga').style.display = 'block';
+  document.getElementById('progresoFill').style.width = '10%';
+  document.getElementById('progresoCargaTxt').textContent = 'Conectando con OneDrive...';
+  
+  try {
+    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(ONEDRIVE_URL);
+    const response = await fetch(proxyUrl);
+    if (!response.ok) throw new Error("No se pudo descargar el archivo de OneDrive");
+    
+    document.getElementById('progresoFill').style.width = '30%';
+    document.getElementById('progresoCargaTxt').textContent = 'Descargando datos...';
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const data = new Uint8Array(arrayBuffer);
+    
+    document.getElementById('progresoFill').style.width = '50%';
+    document.getElementById('progresoCargaTxt').textContent = 'Procesando archivo...';
+    
+    modoSubida = 'actualizar'; // Sincronización siempre actualiza
+    await procesarExcelData(data);
+    
+  } catch (error) {
+    console.error(error);
+    document.getElementById('progresoCarga').style.display = 'none';
+    mostrarToast("Error sincronizando: " + error.message, true);
+  }
 }
 
 // =============================================
@@ -1614,7 +1714,7 @@ async function procesarExcel(event) {
 const LABELS_CAMPO = {
   nombre:'PROYECTO / ACTIVIDAD', municipio:'MUNICIPIO', subregion:'SUBREGIÓN',
   estado:'ESTADO', tipo:'INDICADOR', año:'VIGENCIA', valor:'VALOR TOTAL',
-  fuente:'FUENTE FINANCIACIÓN', codigo:'CÓDIGO', observacion:'DESCRIPCIÓN / ALCANCE',
+  fuente:'FUENTE FINANCIACIÓN', codigo:'N° CONTRATO / CONVENIO / BPIN', observacion:'DESCRIPCIÓN / ALCANCE',
   observaciones:'OBSERVACIONES / ALERTAS', gerencia:'GERENCIA', contrato:'MODALIDAD CONTRATACIÓN',
   contratista:'CONTRATISTA', avance:'% AVANCE', aporte_dep:'APORTE GOBERNACIÓN', aporte_mun:'APORTE MUNICIPIO'
 };
@@ -1661,7 +1761,7 @@ function _colParaCampo(campo) {
 }
 
 function getColumnasMostrar(limit) {
-  const campoOrden = ['municipio','subregion','nombre','observacion','estado','año','valor','avance','fuente','observaciones'];
+  const campoOrden = ['municipio','subregion','nombre','codigo','observacion','estado','año','valor','avance','fuente','observaciones'];
   const result = [];
   for (const campo of campoOrden) {
     const col = _colParaCampo(campo);
@@ -1679,7 +1779,8 @@ function getColumnasMostrar(limit) {
 
 function inicializarTabla() {
   const head = document.getElementById('tablaHead');
-  const colsMostrar = getColumnasMostrar(10);
+  head.innerHTML = '';
+  const colsMostrar = getColumnasMostrar(12);
   const chkAll = `<th class="col-check"><input type="checkbox" id="chkSelAll" title="Seleccionar todos" onchange="toggleSeleccionarTodos(this.checked)"></th>`;
   head.innerHTML = '<tr>' + chkAll + colsMostrar.map((c, i) => {
     const campo = detectarCampo(c);
@@ -1719,6 +1820,7 @@ function inicializarTabla() {
 
 function filtrarTabla() {
   const q      = document.getElementById('buscador').value.toLowerCase().trim();
+  const qBpin  = document.getElementById('buscadorBpin').value.toLowerCase().trim();
   const estado = document.getElementById('filtroEstado').value.toLowerCase().trim();
   const sub    = document.getElementById('filtroSubregion').value.toLowerCase().trim();
   const año    = document.getElementById('filtroAño').value.trim();
@@ -1726,6 +1828,10 @@ function filtrarTabla() {
   proyectosFiltrados = proyectos.filter(p => {
     const texto = Object.values(p).join(' ').toLowerCase();
     if (q && !texto.includes(q)) return false;
+    if (qBpin) {
+      const pBpin = (obtenerCampoProyecto(p, 'codigo') || '').toLowerCase().trim();
+      if (!pBpin.includes(qBpin)) return false;
+    }
     if (estado) {
       const pEst = (obtenerCampoProyecto(p, 'estado') || '').toLowerCase().trim();
       if (pEst !== estado) return false;
@@ -1766,12 +1872,10 @@ function filtrarTabla() {
   }
 
   // Mostrar/ocultar botón "Borrar filtros"
-  const hayFiltro = q || estado || sub || año || municipioSeleccionado;
+  const hayFiltro = q || qBpin || estado || sub || año || municipioSeleccionado;
   const btnLimpiar = document.getElementById('btnLimpiarFiltros');
   if (btnLimpiar) btnLimpiar.style.display = hayFiltro ? 'inline-flex' : 'none';
 
-  // Limpiar selección al cambiar filtros
-  proyectosSeleccionados.clear();
   actualizarBtnExport();
 
   paginaActual = 1;
@@ -1785,6 +1889,7 @@ function limpiarFiltros() {
   proyectosSeleccionados.clear();
   actualizarBtnExport();
   document.getElementById('buscador').value = '';
+  document.getElementById('buscadorBpin').value = '';
   document.getElementById('filtroEstado').value = '';
   document.getElementById('filtroSubregion').value = '';
   document.getElementById('filtroAño').value = '';
@@ -1937,8 +2042,12 @@ function badgeEstado(v) {
   let cls = 'estado-otro';
   if (vl.includes('ejecuci')) cls = 'estado-ejecucion';
   else if (vl.includes('termin')) cls = 'estado-terminado';
+  else if (vl.includes('por iniciar') || vl.includes('sin contrat')) cls = 'estado-por-iniciar';
+  else if (vl.includes('suspend') || vl.includes('paraliz')) cls = 'estado-suspendido';
+  else if (vl.includes('aprobad')) cls = 'estado-aprobado';
+  else if (vl.includes('adjudica')) cls = 'estado-adjudicado';
   else if (vl.includes('contrat')) cls = 'estado-contratado';
-  else if (vl.includes('formulaci') || vl.includes('prefactibi')) cls = 'estado-formulacion';
+  else if (vl.includes('formulaci') || vl.includes('prefactibi') || vl.includes('estructur') || vl.includes('factibi')) cls = 'estado-formulacion';
   return `<span class="badge-estado ${cls}">${v}</span>`;
 }
 
@@ -2008,7 +2117,7 @@ const CAMPO_MAP = {
   año:         ['__EMPTY_10', 'Vigencia', 'AÑO', 'ANO', 'VIGENCIA', 'año', 'vigencia'],
   estado:      ['__EMPTY_11', 'Estado ', 'Estado', 'ESTADO', 'estado'],
   avance:      ['__EMPTY_12', '% Avance ', '% Avance', 'AVANCE', '%AVANCE', 'PORCENTAJE', 'avance'],
-  codigo:      ['CODIGO', 'CÓDIGO', 'CUP', 'codigo'],
+  codigo:      ['N° Contrato/Convenio/BPIN', 'N° Contrato', 'CONTRATO_BPIN', 'BPIN', 'CODIGO', 'CÓDIGO', 'CUP', 'codigo'],
   contratista: ['CONTRATISTA', 'EMPRESA', 'contratista'],
   gerencia:    ['GERENCIA', 'DEPENDENCIA', 'gerencia'],
 };
@@ -2078,6 +2187,9 @@ function iconoEstado(estado) {
   const e = estado.toLowerCase();
   if (e.includes('ejecuci')) return '⚙️';
   if (e.includes('termin') || e.includes('entregad')) return '✅';
+  if (e.includes('por iniciar') || e.includes('sin contrat')) return '🔜';
+  if (e.includes('aprobad')) return '✔️';
+  if (e.includes('adjudica')) return '📄';
   if (e.includes('contrat')) return '📋';
   if (e.includes('estructur') || e.includes('formulac') || e.includes('prefactibi') || e.includes('factibi')) return '📐';
   if (e.includes('suspend') || e.includes('paraliz')) return '⏸️';
@@ -2089,7 +2201,8 @@ function mostrarDetalle(idx) {
   const p = proyectos[idx];
   const panel = document.getElementById('panelDetalle');
   panel.classList.add('visible');
-  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const overlay = document.getElementById('detalleOverlay');
+  if (overlay) overlay.classList.add('visible');
 
   const nombre   = obtenerCampoProyecto(p,'nombre')   || 'Proyecto sin nombre';
   const municipio= obtenerCampoProyecto(p,'municipio')|| '';
@@ -2238,6 +2351,8 @@ window.addEventListener('load', () => {
 function cerrarDetalle() {
   proyectoActivo = null;
   document.getElementById('panelDetalle').classList.remove('visible');
+  const overlay = document.getElementById('detalleOverlay');
+  if (overlay) overlay.classList.remove('visible');
   renderTabla();
 }
 
@@ -2981,9 +3096,21 @@ function mostrarResumenMunicipio(nombreUp) {
 }
 
 // =============================================
-// EXPORTAR WORD — formato plantilla SIF
+// EXPORTAR EXCEL Y WORD
 // =============================================
 function exportarWord() {
+  modoExportDoc = 'word';
+  document.getElementById('exportModalTitle').textContent = '⬇ Exportar Word';
+  iniciarExport();
+}
+
+function exportarExcel() {
+  modoExportDoc = 'excel';
+  document.getElementById('exportModalTitle').textContent = '⬇ Exportar Excel';
+  iniciarExport();
+}
+
+function iniciarExport() {
   if (!proyectos.length) { mostrarToast("Sin datos para exportar", true); return; }
 
   // Si hay proyectos seleccionados con checkbox, exportar esos directamente
@@ -2992,7 +3119,7 @@ function exportarWord() {
       const pid = String(p._id || proyectos.indexOf(p));
       return proyectosSeleccionados.has(pid);
     });
-    generarWord(datos);
+    ejecutarExportador(datos);
     return;
   }
 
@@ -3006,14 +3133,83 @@ function exportarWord() {
       `📦 Todos los proyectos (${proyectos.length})`;
     document.getElementById('modalExport').classList.add('visible');
   } else {
-    generarWord(base);
+    ejecutarExportador(base);
   }
 }
 
 function ejecutarExport(tipo) {
   cerrarModal('modalExport');
   const datos = tipo === 'filtrados' ? proyectosFiltrados : proyectos;
-  generarWord(datos);
+  ejecutarExportador(datos);
+}
+
+function ejecutarExportador(datos) {
+  if (modoExportDoc === 'excel') generarExcel(datos);
+  else generarWord(datos);
+}
+
+function valorNumExcel(val) {
+  if (!val) return '';
+  // Limpiar formatos de moneda o texto y convertir a número si es posible
+  const str = String(val).replace(/\$|\s/g, '').replace(/,/g, '');
+  const num = parseFloat(str);
+  return isNaN(num) ? val : num;
+}
+
+function generarExcel(datos) {
+  if (!datos || !datos.length) { mostrarToast("Sin datos para exportar", true); return; }
+  
+  const filasExcel = datos.map(p => ({
+    "Municipio": obtenerCampoProyecto(p, 'municipio') || '',
+    "Subregión": obtenerCampoProyecto(p, 'subregion') || '',
+    "N° Contrato/Convenio/BPIN": obtenerCampoProyecto(p, 'codigo') || '',
+    "Proyecto / Actividad": obtenerCampoProyecto(p, 'nombre') || '',
+    "Descripción / Alcance": obtenerCampoProyecto(p, 'observacion') || '',
+    "Aporte Gobernación": valorNumExcel(obtenerCampoProyecto(p, 'aporte_dep')),
+    "Aporte Municipio": valorNumExcel(obtenerCampoProyecto(p, 'aporte_mun')),
+    "Valor Total Proyecto": valorNumExcel(obtenerCampoProyecto(p, 'valor')),
+    "Fuente Financiación": obtenerCampoProyecto(p, 'fuente') || '',
+    "Modalidad Contratación": obtenerCampoProyecto(p, 'contrato') || '',
+    "Contratista": obtenerCampoProyecto(p, 'contratista') || '',
+    "Vigencia": obtenerCampoProyecto(p, 'año') || '',
+    "Estado": obtenerCampoProyecto(p, 'estado') || '',
+    "% Avance": valorNumExcel(obtenerCampoProyecto(p, 'avance')),
+    "Observaciones / Alertas": obtenerCampoProyecto(p, 'observaciones') || ''
+  }));
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(filasExcel);
+
+  // Auto-ajustar ancho de columnas
+  const cols = Object.keys(filasExcel[0] || {});
+  const wscols = cols.map(col => {
+    const maxLen = Math.max(
+      col.length,
+      ...filasExcel.map(row => String(row[col] || '').length)
+    );
+    return { wch: Math.min(maxLen + 3, 65) }; // Ancho inteligente con tope
+  });
+  ws['!cols'] = wscols;
+
+  // Formato Moneda y Porcentaje
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  for (let C = range.s.c; C <= range.e.c; ++C) {
+    const colName = cols[C];
+    const isMoneda = colName.includes('Aporte') || colName.includes('Valor');
+    const isPorcentaje = colName.includes('Avance');
+    
+    for (let R = range.s.r + 1; R <= range.e.r; ++R) {
+      const cell = ws[XLSX.utils.encode_cell({r: R, c: C})];
+      if (cell && cell.t === 'n') {
+        if (isMoneda) cell.z = '"$"#,##0';
+        else if (isPorcentaje && cell.v < 10) cell.z = '0.00%';
+      }
+    }
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, "Proyectos");
+  XLSX.writeFile(wb, "Proyectos_SIF.xlsx");
+  mostrarToast("✓ Excel exportado con éxito");
 }
 
 async function generarWord(datos) {
@@ -3033,7 +3229,7 @@ async function generarWord(datos) {
 
   const { Document, Table, TableRow, TableCell, Paragraph, TextRun,
           Packer, WidthType, AlignmentType, VerticalAlign,
-          BorderStyle, ShadingType, PageOrientation, HeightRule } = window.docx;
+          BorderStyle, ShadingType, PageOrientation, HeightRule, Header, Footer, PageNumber } = window.docx;
 
   // Compatibilidad entre versiones
   const VCENTER  = (VerticalAlign  && VerticalAlign.CENTER)    ? VerticalAlign.CENTER    : 'center';
@@ -3050,8 +3246,8 @@ async function generarWord(datos) {
   const C_BORDE   = '2E7D4F';
   const C_TEXTO   = '1A1A1A';
 
-  // 5 columnas: Municipio | Proyecto | Descripción | Inversión | Estado
-  const COL  = [1500, 3300, 2700, 2900, 2720];
+  // 6 columnas: Municipio | BPIN | Proyecto | Descripción | Inversión | Estado
+  const COL  = [1400, 1600, 2600, 2600, 2400, 2520];
   const NCOL = COL.length;
   const FONT = 'Calibri';
 
@@ -3112,7 +3308,7 @@ async function generarWord(datos) {
   });
 
   // ── Fila 2: Encabezados ───────────────────────────────────
-  const HEADERS = ['Municipio', 'Proyecto / Actividad', 'Descripción / Alcance', 'Inversión Gobernación - Fuente', 'Estado / Alertas'];
+  const HEADERS = ['Municipio', 'N° Contrato / BPIN', 'Proyecto / Actividad', 'Descripción / Alcance', 'Inversión Gobernación - Fuente', 'Estado / Alertas'];
   const headerRow = new TableRow({
     tableHeader: true,
     height: { value: 420, rule: ATLEAST },
@@ -3126,6 +3322,7 @@ async function generarWord(datos) {
 
   const dataRows = datos.map(p => {
     const mun    = getMunicipio(p)                       || '';
+    const bpin   = obtenerCampoProyecto(p, 'codigo')     || '';
     const nombre = obtenerCampoProyecto(p, 'nombre')     || '';
     const obs    = obtenerCampoProyecto(p, 'observacion')|| '';
     const aporte = obtenerCampoProyecto(p, 'aporte_dep') || '';
@@ -3159,13 +3356,15 @@ async function generarWord(datos) {
     if (avanceTxt) estadoParas.push(parr([run(avanceTxt)], { before: 20 }));
 
     return new TableRow({
+      cantSplit: true, // Evita que la fila se corte entre páginas
       height: { value: 600, rule: ATLEAST },
       children: [
         mkCell([parr([run(mun, { bold: true })])],          COL[0]),
-        mkCell([parr([run(nombre)], { center: false })],    COL[1]),
-        mkCell([parr([run(obs)],    { center: false })],    COL[2]),
-        mkCell(invParas,                                    COL[3]),
-        mkCell(estadoParas,                                 COL[4]),
+        mkCell([parr([run(bpin)],   { center: false })],    COL[1]),
+        mkCell([parr([run(nombre)], { center: false })],    COL[2]),
+        mkCell([parr([run(obs)],    { center: false })],    COL[3]),
+        mkCell(invParas,                                    COL[4]),
+        mkCell(estadoParas,                                 COL[5]),
       ]
     });
   });
@@ -3200,16 +3399,59 @@ async function generarWord(datos) {
     rows: [headerRow, ...dataRows, totalRow]
   });
 
-  // ── Documento (orientación horizontal, márgenes estrechos) ─
+  // ── Documento Oficial con Portada y Encabezados ─
   const doc = new Document({
     sections: [{
       properties: {
         page: {
           size: { width: 15840, height: 12240, orientation: LSCAPE },
-          margin: { top: 720, bottom: 720, left: 720, right: 720 }
+          margin: { top: 1000, bottom: 1000, left: 720, right: 720 }
         }
       },
-      children: [table]
+      headers: {
+        default: new Header({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.RIGHT,
+              children: [
+                new TextRun({ text: "Gobernación de Antioquia • Secretaría de Infraestructura Física", color: "888888", size: 18 })
+              ]
+            })
+          ]
+        })
+      },
+      footers: {
+        default: new Footer({
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new TextRun({ text: "Página ", color: "888888", size: 18 }),
+                new TextRun({ children: [PageNumber.CURRENT], color: "888888", size: 18 }),
+                new TextRun({ text: " de ", color: "888888", size: 18 }),
+                new TextRun({ children: [PageNumber.TOTAL_PAGES], color: "888888", size: 18 })
+              ]
+            })
+          ]
+        })
+      },
+      children: [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 400, after: 600 },
+          children: [
+            new TextRun({ text: "REPORTE OFICIAL DE PROYECTOS SIF", bold: true, size: 36, color: C_TITULO })
+          ]
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 600 },
+          children: [
+            new TextRun({ text: "Generado el " + new Date().toLocaleDateString('es-CO'), size: 24, color: "555555" })
+          ]
+        }),
+        table
+      ]
     }]
   });
 
