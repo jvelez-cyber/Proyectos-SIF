@@ -3,19 +3,28 @@ on:
   schedule:
     - cron: '0 6 */2 * *'
   workflow_dispatch:
+
+permissions:
+  contents: write
+
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Descargar Excel desde OneDrive
         run: |
           mkdir -p data
-          curl -L --max-time 60 "https://gobantioquia-my.sharepoint.com/:x:/g/personal/vtobonl_antioquia_gov_co/IQC-2boDTWHVTb2G0pz4v8eeAaBGAYQgSV30hGREjzAlc1c?e=0An6vG&download=1" -o data/proyectos.xlsx
+          curl -L --max-time 60 \
+            "https://gobantioquia-my.sharepoint.com/:x:/g/personal/vtobonl_antioquia_gov_co/IQC-2boDTWHVTb2G0pz4v8eeAaBGAYQgSV30hGREjzAlc1c?e=0An6vG&download=1" \
+            -o data/proyectos.xlsx
           echo "Tamaño: $(wc -c < data/proyectos.xlsx) bytes"
+
       - name: Subir si hay cambios
         run: |
           git config user.name "GitHub Actions Bot"
           git config user.email "actions@github.com"
           git add data/proyectos.xlsx
-          git diff --staged --quiet && echo "Sin cambios" || (git commit -m "Auto-sync Excel $(date +'%Y-%m-%d')" && git push)
+          git diff --staged --quiet && echo "Sin cambios" || \
+          (git commit -m "Auto-sync Excel $(date +'%Y-%m-%d')" && git push)
