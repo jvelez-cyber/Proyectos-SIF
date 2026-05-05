@@ -1414,7 +1414,7 @@ const COLUMNAS_DEFAULT = ['NOMBRE_PROYECTO','MUNICIPIO','SUBREGION','ESTADO','TI
 // =============================================
 // FIREBASE INIT
 // =============================================
-const ONEDRIVE_URL = "https://gobantioquia-my.sharepoint.com/:x:/g/personal/vtobonl_antioquia_gov_co/IQC-2boDTWHVTb2G0pz4v8eeAaBGAYQgSV30hGREjzAlc1c?e=0An6vG&download=1";
+const ONEDRIVE_URL = "https://raw.githubusercontent.com/jvelez-cyber/Proyectos-SIF/main/data/proyectos.xlsx";
 
 window.addEventListener('firebaseReady', async () => {
   db = window._db;
@@ -1737,45 +1737,26 @@ async function sincronizarOneDrive() {
   document.getElementById('progresoFill').style.width = '10%';
   document.getElementById('progresoCargaTxt').textContent = 'Conectando con OneDrive...';
 
-  const INTENTOS = [
-    { label: 'proxy 1', fn: url => `https://corsproxy.io/?${encodeURIComponent(url)}`,                     timeout: 90000 },
-    { label: 'proxy 2', fn: url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,         timeout: 60000 },
-    { label: 'proxy 3', fn: url => `https://thingproxy.freeboard.io/fetch/${url}`,                          timeout: 60000 },
-    { label: 'proxy 4', fn: url => `https://corsproxy.org/?${encodeURIComponent(url)}`,                     timeout: 60000 },
-    { label: 'proxy 5', fn: url => `https://proxy.cors.sh/${url}`,                                          timeout: 60000 },
-  ];
+  try {
+    document.getElementById('progresoCargaTxt').textContent = 'Descargando desde repositorio...';
+    const response = await fetch(ONEDRIVE_URL + '?t=' + Date.now(), { signal: AbortSignal.timeout(60000) });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
-  let lastError = null;
-  for (let i = 0; i < INTENTOS.length; i++) {
-    const { label, fn, timeout } = INTENTOS[i];
-    const fetchUrl = fn(ONEDRIVE_URL);
-    document.getElementById('progresoCargaTxt').textContent = `Conectando... (${label} de ${INTENTOS.length})`;
-    try {
-      const response = await fetch(fetchUrl, { signal: AbortSignal.timeout(timeout) });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    document.getElementById('progresoFill').style.width = '40%';
+    document.getElementById('progresoCargaTxt').textContent = 'Procesando archivo...';
 
-      document.getElementById('progresoFill').style.width = '30%';
-      document.getElementById('progresoCargaTxt').textContent = 'Descargando datos...';
+    const arrayBuffer = await response.arrayBuffer();
+    if (arrayBuffer.byteLength < 1000) throw new Error('Archivo vacío o inválido');
 
-      const arrayBuffer = await response.arrayBuffer();
-      if (arrayBuffer.byteLength < 1000) throw new Error('Archivo vacío o inválido');
-
-      const data = new Uint8Array(arrayBuffer);
-      document.getElementById('progresoFill').style.width = '50%';
-      document.getElementById('progresoCargaTxt').textContent = 'Procesando archivo...';
-
-      modoSubida = 'actualizar';
-      await procesarExcelData(data);
-      return;
-    } catch (err) {
-      lastError = err;
-      console.warn(`Intento ${label} falló:`, err.message);
-    }
+    modoSubida = 'actualizar';
+    await procesarExcelData(new Uint8Array(arrayBuffer));
+    return;
+  } catch (err) {
+    document.getElementById('progresoCarga').style.display = 'none';
+    mostrarToast("No se pudo sincronizar: " + err.message, true);
+    console.error("Sync falló:", err);
+    return;
   }
-
-  document.getElementById('progresoCarga').style.display = 'none';
-  mostrarToast("No se pudo sincronizar. Sube el Excel manualmente en Modo Editor.", true);
-  console.error("Todos los intentos fallaron:", lastError);
 }
 
 // =============================================
