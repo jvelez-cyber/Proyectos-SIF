@@ -13,13 +13,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Descargar Excel desde OneDrive
+            - name: Descargar Excel desde OneDrive
         run: |
           mkdir -p data
           curl -L --max-time 60 \
+            -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36" \
+            -H "Accept: application/octet-stream,*/*" \
+            -c /tmp/cookies.txt -b /tmp/cookies.txt \
             "https://gobantioquia-my.sharepoint.com/:x:/g/personal/vtobonl_antioquia_gov_co/IQC-2boDTWHVTb2G0pz4v8eeAaBGAYQgSV30hGREjzAlc1c?e=0An6vG&download=1" \
             -o data/proyectos.xlsx
-          echo "Tamaño: $(wc -c < data/proyectos.xlsx) bytes"
+          BYTES=$(wc -c < data/proyectos.xlsx)
+          echo "Tamaño: $BYTES bytes"
+          if [ $BYTES -lt 1000 ]; then
+            echo "ERROR: El archivo es demasiado pequeño. Contenido:"
+            cat data/proyectos.xlsx
+            exit 1
+          fi
 
       - name: Subir si hay cambios
         run: |
