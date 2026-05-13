@@ -434,6 +434,17 @@ td[contenteditable="true"].guardado  { box-shadow: inset 0 0 0 2px #2ea84a; back
   max-width: 180px;
 }
 
+.tabla-scroll-top {
+  overflow-x: auto;
+  overflow-y: hidden;
+  height: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #b5ccb5 #e8ece5;
+}
+.tabla-scroll-top::-webkit-scrollbar { height: 8px; }
+.tabla-scroll-top::-webkit-scrollbar-thumb { background: #b5ccb5; border-radius: 4px; }
+.tabla-scroll-top::-webkit-scrollbar-track { background: #e8ece5; }
+
 .tabla-wrapper {
   overflow: auto;
   flex: 1;
@@ -1352,7 +1363,8 @@ service cloud.firestore {<br>
       <button class="btn btn-limpiar btn-sm" id="btnLimpiarFiltros" style="display:none" onclick="limpiarFiltros()">✕ Borrar filtros</button>
       <button class="btn btn-verde btn-sm" id="btnNuevo" style="display:none" onclick="nuevoProyecto()">+ Nuevo</button>
     </div>
-    <div class="tabla-wrapper">
+    <div class="tabla-scroll-top" id="tablaScrollTop"><div id="tablaScrollTopInner" style="height:1px"></div></div>
+    <div class="tabla-wrapper" id="tablaWrapper">
       <table id="tabla">
         <thead id="tablaHead"></thead>
         <tbody id="tablaBody"></tbody>
@@ -1409,7 +1421,7 @@ let municipioHighlightBusqueda = null;
 let modoSubida = 'actualizar';
 let modoExportDoc = 'word';
 const PIN = "sif2025"; // PIN de administrador
-const COLUMNAS_DEFAULT = ['NOMBRE_PROYECTO','MUNICIPIO','SUBREGION','ESTADO','TIPO','AÑO','VALOR','FUENTE','CODIGO','CONTRATO','CONTRATISTA','AVANCE','OBSERVACIONES','GERENCIA'];
+const COLUMNAS_DEFAULT = ['NOMBRE_PROYECTO','MUNICIPIO','SUBREGION','ESTADO','TIPO','AÑO','VALOR','FUENTE','CODIGO','CONTRATO','CONTRATISTA','AVANCE','OBSERVACIONES','GERENCIA','PAQUETE','ALCANCE KM','MAPA'];
 
 // =============================================
 // FIREBASE INIT
@@ -1768,7 +1780,8 @@ const LABELS_CAMPO = {
   estado:'ESTADO', tipo:'INDICADOR', año:'VIGENCIA', valor:'VALOR TOTAL',
   fuente:'FUENTE FINANCIACIÓN', codigo:'N° CONTRATO / CONVENIO / BPIN', observacion:'DESCRIPCIÓN / ALCANCE',
   observaciones:'OBSERVACIONES / ALERTAS', gerencia:'GERENCIA', contrato:'MODALIDAD CONTRATACIÓN',
-  contratista:'CONTRATISTA', avance:'% AVANCE', aporte_dep:'APORTE GOBERNACIÓN', aporte_mun:'APORTE MUNICIPIO'
+  contratista:'CONTRATISTA', avance:'% AVANCE', aporte_dep:'APORTE GOBERNACIÓN', aporte_mun:'APORTE MUNICIPIO',
+  paquete:'PAQUETE', alcance_km:'ALCANCE (km)', mapa:'MAPA'
 };
 
 // Devuelve columnas en orden semántico lógico para mostrar en la tabla
@@ -1813,7 +1826,7 @@ function _colParaCampo(campo) {
 }
 
 function getColumnasMostrar(limit) {
-  const campoOrden = ['municipio','subregion','nombre','codigo','observacion','estado','año','valor','avance','fuente','observaciones'];
+  const campoOrden = ['municipio','subregion','paquete','nombre','codigo','observacion','alcance_km','estado','año','valor','avance','fuente','observaciones','mapa'];
   const result = [];
   for (const campo of campoOrden) {
     const col = _colParaCampo(campo);
@@ -1832,7 +1845,7 @@ function getColumnasMostrar(limit) {
 function inicializarTabla() {
   const head = document.getElementById('tablaHead');
   head.innerHTML = '';
-  const colsMostrar = getColumnasMostrar(12);
+  const colsMostrar = getColumnasMostrar(15);
   const chkAll = `<th class="col-check"><input type="checkbox" id="chkSelAll" title="Seleccionar todos" onchange="toggleSeleccionarTodos(this.checked)"></th>`;
   head.innerHTML = '<tr>' + chkAll + colsMostrar.map((c, i) => {
     const campo = detectarCampo(c);
@@ -1868,6 +1881,20 @@ function inicializarTabla() {
   if (prevEst) selEst.value = prevEst;
 
   filtrarTabla();
+  sincronizarScrollTabla();
+}
+
+function sincronizarScrollTabla() {
+  const wrapper  = document.getElementById('tablaWrapper');
+  const topBar   = document.getElementById('tablaScrollTop');
+  const topInner = document.getElementById('tablaScrollTopInner');
+  const tabla    = document.getElementById('tabla');
+  if (!wrapper || !topBar || !topInner || !tabla) return;
+
+  topInner.style.width = tabla.scrollWidth + 'px';
+
+  wrapper.onscroll  = () => { topBar.scrollLeft  = wrapper.scrollLeft; };
+  topBar.onscroll   = () => { wrapper.scrollLeft = topBar.scrollLeft; };
 }
 
 function filtrarTabla() {
@@ -1970,7 +1997,7 @@ function ordenarPor(i) {
 }
 
 function renderTabla() {
-  const colsMostrar = getColumnasMostrar(10);
+  const colsMostrar = getColumnasMostrar(15);
   const inicio = (paginaActual - 1) * POR_PAGINA;
   const pagina = proyectosFiltrados.slice(inicio, inicio + POR_PAGINA);
   const body = document.getElementById('tablaBody');
@@ -2172,6 +2199,9 @@ const CAMPO_MAP = {
   avance:      ['__EMPTY_12', '% Avance ', '% Avance', 'AVANCE', '%AVANCE', 'PORCENTAJE', 'avance'],
   contratista: ['CONTRATISTA', 'EMPRESA', 'contratista'],
   gerencia:    ['GERENCIA', 'DEPENDENCIA', 'gerencia'],
+  paquete:     ['PAQUETE', 'PAQUETE_OBRA', 'PAQUETE OBRA', 'paquete'],
+  alcance_km:  ['Alcance (km)', 'ALCANCE (KM)', 'ALCANCE KM', 'ALCANCE_KM', 'alcance km', 'alcance_km'],
+  mapa:        ['MAPA', 'LINK MAPA', 'ENLACE MAPA', 'URL MAPA', 'mapa'],
 };
 
 // Sanitiza un nombre de campo para Firestore (no permite / ~ * [ ])
@@ -2298,10 +2328,10 @@ function mostrarDetalle(idx) {
 
   // Definición de secciones con campos semánticos
   const secciones = [
-    { icono: '📌', titulo: 'Identificación', campos: ['nombre','observacion','codigo'] },
-    { icono: '📍', titulo: 'Localización',   campos: ['municipio','subregion'] },
+    { icono: '📌', titulo: 'Identificación', campos: ['nombre','observacion','codigo','paquete'] },
+    { icono: '📍', titulo: 'Localización',   campos: ['municipio','subregion','mapa'] },
     { icono: '💰', titulo: 'Financiero',     campos: ['valor','aporte_dep','aporte_mun','fuente'] },
-    { icono: '⚙️', titulo: 'Ejecución',     campos: ['estado','avance','año','contrato','contratista','gerencia'] },
+    { icono: '⚙️', titulo: 'Ejecución',     campos: ['estado','avance','alcance_km','año','contrato','contratista','gerencia'] },
     { icono: '📝', titulo: 'Observaciones',  campos: ['observaciones'] },
   ];
 
@@ -2334,6 +2364,8 @@ function mostrarDetalle(idx) {
           </div>
           <span class="avance-label">avance físico</span>
         </div>`;
+      } else if (campo === 'mapa' && /^https?:\/\//i.test(String(v).trim())) {
+        displayV = `<a href="${String(v).trim()}" target="_blank" rel="noopener" style="color:var(--azul);text-decoration:underline">🗺 Ver en mapa</a>`;
       } else {
         displayV = esDinero && /^[\d.,]+$/.test(String(v).replace(/[$\s]/g,''))
           ? formatearDinero(v) : String(v);
@@ -3226,9 +3258,11 @@ function generarExcel(datos) {
   const filasExcel = datos.map(p => ({
     "Municipio": obtenerCampoProyecto(p, 'municipio') || '',
     "Subregión": obtenerCampoProyecto(p, 'subregion') || '',
+    "Paquete": obtenerCampoProyecto(p, 'paquete') || '',
     "N° Contrato/Convenio/BPIN": obtenerCampoProyecto(p, 'codigo') || '',
     "Proyecto / Actividad": obtenerCampoProyecto(p, 'nombre') || '',
     "Descripción / Alcance": obtenerCampoProyecto(p, 'observacion') || '',
+    "Alcance (km)": obtenerCampoProyecto(p, 'alcance_km') || '',
     "Aporte Gobernación": valorNumExcel(obtenerCampoProyecto(p, 'aporte_dep')),
     "Aporte Municipio": valorNumExcel(obtenerCampoProyecto(p, 'aporte_mun')),
     "Valor Total Proyecto": valorNumExcel(obtenerCampoProyecto(p, 'valor')),
@@ -3238,7 +3272,8 @@ function generarExcel(datos) {
     "Vigencia": obtenerCampoProyecto(p, 'año') || '',
     "Estado": obtenerCampoProyecto(p, 'estado') || '',
     "% Avance": valorNumExcel(obtenerCampoProyecto(p, 'avance')),
-    "Observaciones / Alertas": obtenerCampoProyecto(p, 'observaciones') || ''
+    "Observaciones / Alertas": obtenerCampoProyecto(p, 'observaciones') || '',
+    "Mapa": obtenerCampoProyecto(p, 'mapa') || ''
   }));
 
   const wb = XLSX.utils.book_new();
@@ -3310,8 +3345,8 @@ async function generarWord(datos) {
   const C_BORDE   = '2E7D4F';
   const C_TEXTO   = '1A1A1A';
 
-  // 6 columnas: Municipio | BPIN | Proyecto | Descripción | Inversión | Estado
-  const COL  = [1400, 1600, 2600, 2600, 2400, 2520];
+  // 9 columnas: Municipio | Paquete | BPIN | Proyecto | Descripción | Alcance km | Inversión | Estado | Mapa
+  const COL  = [1200, 1000, 1500, 2100, 1900, 900, 1900, 1200, 1300];
   const NCOL = COL.length;
   const FONT = 'Calibri';
 
@@ -3324,7 +3359,7 @@ async function generarWord(datos) {
   const MARGINS = { top: 120, bottom: 120, left: 160, right: 160 };
 
   // ── Helpers ──────────────────────────────────────────────
-  function run(text, { bold = false, color = C_TEXTO, sz = 20 } = {}) {
+  function run(text, { bold = false, color = C_TEXTO, sz = 16 } = {}) {
     return new TextRun({ text: String(text || ''), bold, size: sz, font: FONT, color });
   }
   function parr(children, { center = true, before = 40, after = 40 } = {}) {
@@ -3372,12 +3407,12 @@ async function generarWord(datos) {
   });
 
   // ── Fila 2: Encabezados ───────────────────────────────────
-  const HEADERS = ['Municipio', 'N° Contrato / BPIN', 'Proyecto / Actividad', 'Descripción / Alcance', 'Inversión Gobernación - Fuente', 'Estado / Alertas'];
+  const HEADERS = ['Municipio', 'Paquete', 'N° Contrato / BPIN', 'Proyecto / Actividad', 'Descripción / Alcance', 'Alcance (km)', 'Inversión Gobernación - Fuente', 'Estado / Alertas', 'Mapa'];
   const headerRow = new TableRow({
     tableHeader: true,
     height: { value: 420, rule: ATLEAST },
     children: COL.map((w, i) =>
-      mkCell([parr([run(HEADERS[i], { bold: true, color: C_TEXTO, sz: 22 })], { before: 60, after: 60 })], w)
+      mkCell([parr([run(HEADERS[i], { bold: true, color: C_TEXTO, sz: 18 })], { before: 60, after: 60 })], w)
     )
   });
 
@@ -3385,15 +3420,18 @@ async function generarWord(datos) {
   let totalInversion = 0;
 
   const dataRows = datos.map(p => {
-    const mun    = getMunicipio(p)                       || '';
-    const bpin   = obtenerCampoProyecto(p, 'codigo')     || '';
-    const nombre = obtenerCampoProyecto(p, 'nombre')     || '';
-    const obs    = obtenerCampoProyecto(p, 'observacion')|| '';
-    const aporte = obtenerCampoProyecto(p, 'aporte_dep') || '';
-    const valor  = obtenerCampoProyecto(p, 'valor')      || '';
-    const fuente = obtenerCampoProyecto(p, 'fuente')     || '';
-    const estado = obtenerCampoProyecto(p, 'estado')     || '';
-    const avance = obtenerCampoProyecto(p, 'avance')     || '';
+    const mun      = getMunicipio(p)                         || '';
+    const bpin     = obtenerCampoProyecto(p, 'codigo')       || '';
+    const nombre   = obtenerCampoProyecto(p, 'nombre')       || '';
+    const obs      = obtenerCampoProyecto(p, 'observacion')  || '';
+    const aporte   = obtenerCampoProyecto(p, 'aporte_dep')   || '';
+    const valor    = obtenerCampoProyecto(p, 'valor')        || '';
+    const fuente   = obtenerCampoProyecto(p, 'fuente')       || '';
+    const estado   = obtenerCampoProyecto(p, 'estado')       || '';
+    const avance   = obtenerCampoProyecto(p, 'avance')       || '';
+    const paquete  = obtenerCampoProyecto(p, 'paquete')      || '';
+    const alcanceKm= obtenerCampoProyecto(p, 'alcance_km')   || '';
+    const mapa     = obtenerCampoProyecto(p, 'mapa')         || '';
 
     // Acumular inversión total
     totalInversion += valorNumerico(aporte || valor);
@@ -3402,7 +3440,7 @@ async function generarWord(datos) {
     const montoTxt = fmtPesoWord(aporte || valor);
     const invParas = [];
     if (montoTxt) {
-      invParas.push(parr([run('Inversión Gobernación', { bold: true })], { after: 20 }));
+      invParas.push(parr([run('Inv. Gobernación', { bold: true })], { after: 20 }));
       invParas.push(parr([run(montoTxt)], { after: 50 }));
     }
     if (fuente) {
@@ -3411,24 +3449,27 @@ async function generarWord(datos) {
     }
     if (!invParas.length) invParas.push(parr([run('—')]));
 
-    // Celda Estado
+    // Celda Estado + Avance
     const avanceNum = parseFloat(avance);
     const avanceTxt = !isNaN(avanceNum)
-      ? 'Avance físico ' + (avanceNum > 1 ? avanceNum : avanceNum * 100).toFixed(2) + '%'
+      ? 'Avance: ' + (avanceNum > 1 ? avanceNum : avanceNum * 100).toFixed(0) + '%'
       : '';
     const estadoParas = [parr([run(estado, { bold: true })])];
     if (avanceTxt) estadoParas.push(parr([run(avanceTxt)], { before: 20 }));
 
     return new TableRow({
-      cantSplit: true, // Evita que la fila se corte entre páginas
+      cantSplit: true,
       height: { value: 600, rule: ATLEAST },
       children: [
-        mkCell([parr([run(mun, { bold: true })])],          COL[0]),
-        mkCell([parr([run(bpin)],   { center: false })],    COL[1]),
-        mkCell([parr([run(nombre)], { center: false })],    COL[2]),
-        mkCell([parr([run(obs)],    { center: false })],    COL[3]),
-        mkCell(invParas,                                    COL[4]),
-        mkCell(estadoParas,                                 COL[5]),
+        mkCell([parr([run(mun,           { bold: true })])],      COL[0]),
+        mkCell([parr([run(paquete||'—')],  { center: false })],   COL[1]),
+        mkCell([parr([run(bpin)],          { center: false })],   COL[2]),
+        mkCell([parr([run(nombre)],        { center: false })],   COL[3]),
+        mkCell([parr([run(obs)],           { center: false })],   COL[4]),
+        mkCell([parr([run(alcanceKm||'—')])],                     COL[5]),
+        mkCell(invParas,                                          COL[6]),
+        mkCell(estadoParas,                                       COL[7]),
+        mkCell([parr([run(mapa||'—')],     { center: false })],   COL[8]),
       ]
     });
   });
@@ -3446,12 +3487,12 @@ async function generarWord(datos) {
         borders: BORDERS,
         margins: MARGINS,
         children: [parr(
-          [run(`INVERSIÓN TOTAL — ${datos.length} proyecto${datos.length !== 1 ? 's' : ''}`, { bold: true, color: C_TEXTO, sz: 22 })],
+          [run(`INVERSIÓN TOTAL — ${datos.length} proyecto${datos.length !== 1 ? 's' : ''}`, { bold: true, color: C_TEXTO, sz: 18 })],
           { before: 60, after: 60 }
         )]
       }),
       mkCell(
-        [parr([run(totalFmt, { bold: true, color: C_TEXTO, sz: 22 })], { before: 60, after: 60 })],
+        [parr([run(totalFmt, { bold: true, color: C_TEXTO, sz: 18 })], { before: 60, after: 60 })],
         COL[NCOL - 1]
       )
     ]
