@@ -20,6 +20,12 @@ jobs:
           BYTES=$(wc -c < data/proyectos.xlsx)
           echo "Tamaño: $BYTES bytes"
           if [ $BYTES -lt 1000 ]; then echo "ERROR: $(cat data/proyectos.xlsx)"; exit 1; fi
+          FIRMA=$(head -c 2 data/proyectos.xlsx)
+          if [ "$FIRMA" != "PK" ]; then
+            echo "ERROR: el archivo descargado no es un .xlsx valido (probablemente una pagina de inicio de sesion de SharePoint)."
+            head -c 500 data/proyectos.xlsx
+            exit 1
+          fi
 
       - name: Subir si hay cambios
         run: |
