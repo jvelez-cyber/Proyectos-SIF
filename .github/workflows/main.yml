@@ -16,7 +16,7 @@ jobs:
       - name: Descargar Excel desde OneDrive
         run: |
           mkdir -p data
-          curl -L --max-time 60 -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36" -H "Accept: application/octet-stream,*/*" -c /tmp/cookies.txt -b /tmp/cookies.txt "https://gobantioquia-my.sharepoint.com/:x:/r/personal/vtobonl_antioquia_gov_co/Documents/Base%20de%20datos%20-Proyectos%20Secretar%C3%ADa%20de%20Infraestructura%20F%C3%ADsica%20V3.xlsx?d=wb50ef87163ff4395aba6eb392e68c713&csf=1&web=1&e=yH4FxE&download=1" -o data/proyectos.xlsx
+          curl -L --max-time 60 -H "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0 Safari/537.36" -H "Accept: application/octet-stream,*/*" -c /tmp/cookies.txt -b /tmp/cookies.txt "https://gobantioquia-my.sharepoint.com/:x:/g/personal/vtobonl_antioquia_gov_co/IQBx-A61_2OVQ6um6zkuaMcTAcTkEm9C4LrMC4TiTeM-6FI?e=XNRprF&download=1" -o data/proyectos.xlsx
           BYTES=$(wc -c < data/proyectos.xlsx)
           echo "Tamaño: $BYTES bytes"
           if [ $BYTES -lt 1000 ]; then echo "ERROR: $(cat data/proyectos.xlsx)"; exit 1; fi
